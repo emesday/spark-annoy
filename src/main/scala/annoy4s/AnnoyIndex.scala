@@ -47,6 +47,7 @@ trait Node {
   def setChildren(underlying: ByteBuffer, offsetInBytes: Int, i: Int, v: Int): Unit
   def setAllChildren(underlying: ByteBuffer, offsetInBytes: Int, indices: Array[Int]): Unit
   def setV(underlying: ByteBuffer, offsetInBytes: Int, v: Array[Float]): Unit
+  def setValue(underlying: ByteBuffer, offsetInBytes: Int, v: Float, dim: Float): Unit
 
   def copy(src: ByteBuffer, srcOffsetInBytes: Int, dst: ByteBuffer, dstOffsetInBytes: Int, nodeSizeInBytes: Int): Unit
 }
@@ -64,6 +65,9 @@ case class N(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInByt
 
   def getV(dst: Array[Float]): Array[Float] =
     ops.getV(underlying, offsetInBytes, dst)
+
+  def setValue(v: Float): Unit =
+    ops.setValue(underlying, offsetInBytes, v, dim)
 
   def setNDescendants(nDescendants: Int) =
     ops.setNDescendants(underlying, offsetInBytes, nDescendants)
@@ -175,6 +179,15 @@ trait AngularNode extends Node {
   override def setV(underlying: ByteBuffer, offsetInBytes: Int, v: Array[Float]): Unit = {
     underlying.position(offsetInBytes + 12)
     underlying.asFloatBuffer().put(v)
+  }
+
+  override def setValue(underlying: ByteBuffer, offsetInBytes: Int, v: Float, dim: Float): Unit = {
+    underlying.position(offsetInBytes + 12)
+    var i = 0
+    while (i < dim) {
+      underlying.asFloatBuffer().put(i, v)
+      i += 1
+    }
   }
 
   override def copy(src: ByteBuffer, srcOffsetInBytes: Int, dst: ByteBuffer, dstOffsetInBytes: Int, nodeSizeInBytes: Int): Unit = {
@@ -504,26 +517,26 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) extends AnnoyIndex
       i += 1
     }
 
-    /*
     // If we didn't find a hyperplane, just randomize sides as a last option
-    while (children_indices[0].size() == 0 || children_indices[1].size() == 0) {
-      if (_verbose && indices.size() > 100000)
-        showUpdate("Failed splitting %lu items\n", indices.size());
+    while (childrenIndices(0).isEmpty || childrenIndices(1).isEmpty) {
+      if (_verbose && indices.length > 100000)
+        showUpdate("Failed splitting %lu items\n", indices.length)
 
-      children_indices[0].clear();
-      children_indices[1].clear();
+      childrenIndices(0).clear()
+      childrenIndices(1).clear()
 
       // Set the vector to 0.0
-      for (int z = 0; z < _f; z++)
-      m->v[z] = 0.0;
+      m.setValue(0f)
 
-      for (size_t i = 0; i < indices.size(); i++) {
-        S j = indices[i];
+      var i = 0
+      while (i < indices.length) {
+        val j = indices(i)
         // Just randomize...
-        children_indices[_random.flip()].push_back(j);
+        childrenIndices(if (_random.flip()) 1 else 0) += j
+        i += 1
       }
     }
-    */
+
     val flip = if (childrenIndices(0).length > childrenIndices(1).length) 1 else 0
 
     m.setNDescendants(indices.length)
@@ -540,10 +553,9 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) extends AnnoyIndex
     item
   }
 
-  override def getNItems: Int = ???
+  override def getNItems: Int = _n_items
 
-  override def getItem(item: Int): Array[Float] = ???
-
+  override def getItem(item: Int): Array[Float] = _get(item).getV(new Array[Float](f))
 
   override def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = {
     val v = new Array[Float](f)
@@ -617,5 +629,8 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) extends AnnoyIndex
       .toArray
   }
 
-  override def getDistance(i: Int, j: Int): Float = ???
+  val x0: Array[Float] = new Array[Float](f)
+  val x1: Array[Float] = new Array[Float](f)
+
+  override def getDistance(i: Int, j: Int): Float = distance.distance(_nodes(i).getV(x0), _nodes(j).getV(x1))
 }
