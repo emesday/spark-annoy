@@ -300,17 +300,11 @@ object Functions {
     val count = nodes.length
     val f = iv.length
 
-//    println(s"count: $count")
-
     val i = rand.index(count)
     var j = rand.index(count - 1)
     j += (if (j >= i) 1 else 0)
-//    println(s"i, j = $i, $j")
     nodes(i).getV(iv)
     nodes(j).getV(jv)
-
-//    println(s"iv: ${iv.toSeq}")
-//    println(s"jv: ${jv.toSeq}")
 
     if (cosine) {
       normalize(iv)
@@ -322,23 +316,23 @@ object Functions {
     var l = 0
     var z = 0
     val vi = new Array[Float](f)
-    val vj = new Array[Float](f)
     while (l < iterationSteps) {
       val k = rand.index(count)
-      val di = ic * metric.distance(iv, nodes(k).getV(vi))
-      val dj = jc * metric.distance(jv, nodes(k).getV(vj))
-      val norm = if (cosine) getNorm(nodes(k).getV(vi)) else One
+      val zz = nodes(k).getV(vi)
+      val di = ic * metric.distance(iv, zz)
+      val dj = jc * metric.distance(jv, zz)
+      val norm = if (cosine) getNorm(zz) else One
       if (di < dj) {
         z = 0
         while (z < f) {
-          iv(z) = (iv(z) * ic + nodes(k).getV(vi)(z) / norm) / (ic + 1)
+          iv(z) = (iv(z) * ic + zz(z) / norm) / (ic + 1)
           z += 1
         }
         ic += 1
       } else if (dj < di) {
         z = 0
         while (z < f) {
-          jv(z) = (jv(z) * jc + nodes(k).getV(vj)(z) / norm) / (jc + 1)
+          jv(z) = (jv(z) * jc + zz(z) / norm) / (jc + 1)
           z += 1
         }
         jc += 1
@@ -346,7 +340,6 @@ object Functions {
       l += 1
     }
   }
-
 }
 
 trait Distance {
