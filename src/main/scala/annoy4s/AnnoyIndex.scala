@@ -11,8 +11,7 @@ trait Node {
   def nDescendants: Int
   def children(n: Int): Int
   def getAllChildren(to: Array[Int]): Array[Int]
-  def v: Array[Float]
-  def vTo(to: Array[Float]): Array[Float]
+  def v(to: Array[Float]): Array[Float]
   def vBuffer: FloatBuffer
 
   def setNDescendants(n_descendants: Int): Unit
@@ -43,12 +42,7 @@ class AngularNode(f: Int) extends Node {
     to
   }
 
-  override def v: Array[Float] = {
-    val a = new Array[Float](f)
-    vBuffer.get(a)
-    a
-  }
-  override def vTo(to: Array[Float]): Array[Float] = {
+  override def v(to: Array[Float]): Array[Float] = {
     vBuffer.get(to)
     to
   }
@@ -59,7 +53,7 @@ class AngularNode(f: Int) extends Node {
     ByteBuffer.wrap(underlying, 0, 4).putInt(n_descendants)
 
   override def setChildren(n: Int)(v: Int) =
-    ByteBuffer.wrap(underlying, 4 * n, 4).putInt(v)
+    ByteBuffer.wrap(underlying, 4 * (n + 1), 4).putInt(v)
 
   override def setAllChildren(indices: Array[Int]): Unit = {
     ByteBuffer.wrap(underlying, 4, indices.length * 4).asIntBuffer().put(indices, 0, indices.length)
@@ -117,8 +111,9 @@ object Functions {
     val i = rand.index(count)
     var j = rand.index(count - 1)
     j += (if (j >= i) 1 else 0)
-    System.arraycopy(nodes(i).v, 0, iv, 0, f)
-    System.arraycopy(nodes(j).v, 0, jv, 0, f)
+    nodes(i).v(iv)
+    nodes(j).v(jv)
+
     if (cosine) {
       normalize(iv)
       normalize(jv)
@@ -128,22 +123,24 @@ object Functions {
     var jc = 1
     var l = 0
     var z = 0
+    val vi = new Array[Float](f)
+    val vj = new Array[Float](f)
     while (l < iterationSteps) {
       val k = rand.index(count)
-      val di = ic * metric.distance(iv, nodes(k).v)
-      val dj = jc * metric.distance(jv, nodes(k).v)
-      val norm = if (cosine) getNorm(nodes(k).v) else One
+      val di = ic * metric.distance(iv, nodes(k).v(vi))
+      val dj = jc * metric.distance(jv, nodes(k).v(vj))
+      val norm = if (cosine) getNorm(nodes(k).v(vi)) else One
       if (di < dj) {
         z = 0
         while (z < f) {
-          iv(z) = (iv(z) * ic + nodes(k).v(z) / norm) / (ic + 1)
+          iv(z) = (iv(z) * ic + nodes(k).v(vi)(z) / norm) / (ic + 1)
           z += 1
         }
         ic += 1
       } else if (dj < di) {
         z = 0
         while (z < f) {
-          jv(z) = (jv(z) * jc + nodes(k).v(z) / norm) / (jc + 1)
+          jv(z) = (jv(z) * jc + nodes(k).v(vi)(z) / norm) / (jc + 1)
           z += 1
         }
         jc += 1
@@ -158,8 +155,8 @@ trait Distance {
   val name: String
   def distance(x: Array[Float], y: Array[Float]): Float
   def createSplit(nodes: ArrayBuffer[Node], f: Int, rand: Random, n: Node): Unit
-  def side(n: Node, y: Array[Float], random: Random): Boolean
-  def margin(n: Node, y: Array[Float]): Float
+  def side(n: Node, y: Array[Float], random: Random, buffer: Array[Float]): Boolean
+  def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float
   def newNode(f: Int): Node
   def normalizeDistance(distance: Float): Float
 }
@@ -177,12 +174,12 @@ object Angular extends Distance {
     if (ppqq > 0) (2.0 - 2.0 * pq / Math.sqrt(ppqq)).toFloat else 2.0f
   }
 
-  override def margin(n: Node, y: Array[Float]): Float = {
-    blas.sdot(y.length, n.v, 1, y, 1)
+  override def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float = {
+    blas.sdot(y.length, n.v(buffer), 1, y, 1)
   }
 
-  override def side(n: Node, y: Array[Float], random: Random): Boolean = {
-    val dot = margin(n, y)
+  override def side(n: Node, y: Array[Float], random: Random, buffer: Array[Float]): Boolean = {
+    val dot = margin(n, y, buffer)
     if (dot != Zero) {
       dot > 0
     } else {
@@ -191,15 +188,17 @@ object Angular extends Distance {
   }
 
   override def createSplit(nodes: ArrayBuffer[Node], f: Int, rand: Random, n: Node): Unit = {
+    val buffer = new Array[Float](f)
     val bestIv = new Array[Float](f)
     val bestJv = new Array[Float](f)
     Functions.twoMeans(nodes, true, bestIv, bestJv, this, rand)
     var z = 0
+    n.v(buffer)
     while (z < f) {
-      n.v(z) = bestIv(z) - bestJv(z)
+      buffer(z) = bestIv(z) - bestJv(z)
       z += 1
     }
-    Functions.normalize(n.v)
+    Functions.normalize(buffer)
   }
 
   override def normalizeDistance(distance: Float): Float = {
@@ -322,7 +321,8 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random, initialSize: Int) 
       return item
     }
 
-    val v = new Array[Float](f)
+    val v0 = new Array[Float](f)
+    val v1 = new Array[Float](f)
     val children = new ArrayBuffer[Node]()
     var i = 0
     while (i < indices.length) {
@@ -345,7 +345,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random, initialSize: Int) 
       val j = indices(i)
       val n = _getOrNull(j)
       if (n != null) {
-        val side = if (distance.side(m, n.vTo(v), _random)) 1 else 0
+        val side = if (distance.side(m, n.v(v0), _random, v1)) 1 else 0
         childrenIndices(side) += j
       }
       i += 1
@@ -392,8 +392,9 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random, initialSize: Int) 
   override def getItem(item: Int): Array[Float] = ???
 
   override def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = {
-    val m = _get(item)
-    _get_all_nns(m.v, n, k)
+    val v = new Array[Float](f)
+    _get(item).v(v)
+    _get_all_nns(v, n, k)
   }
 
   override def getNnsByVector(w: Array[Float], n: Int, k: Int): Array[(Int, Float)] = {
@@ -410,6 +411,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random, initialSize: Int) 
     }
 
     var nns = new ArrayBuffer[Int]()
+    val bufferF = new Array[Float](f)
     val buffer = new Array[Int](_K)
     while (nns.length < search_k && q.nonEmpty) {
       val top = q.head
@@ -422,7 +424,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random, initialSize: Int) 
       } else if (nd.nDescendants <= _K) {
         nns ++= nd.getAllChildren(buffer).take(nd.nDescendants)
       } else {
-        val margin = distance.margin(nd, v)
+        val margin = distance.margin(nd, v, bufferF)
         q += math.min(d, +margin) -> nd.children(1)
         q += math.min(d, -margin) -> nd.children(0)
       }
@@ -439,7 +441,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random, initialSize: Int) 
       val j = nns(i)
       if (j != last) {
         last = j
-        nns_dist += distance.distance(v, _get(j).vTo(vBuffer)) -> j
+        nns_dist += distance.distance(v, _get(j).v(vBuffer)) -> j
       }
       i += 1
     }
