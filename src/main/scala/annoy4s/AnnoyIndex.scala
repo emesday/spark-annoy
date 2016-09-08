@@ -90,30 +90,10 @@ class Nodes[T <: NodeOperations](dim: Int, _size: Int) {
       val newsize = math.max(n, (size + 1) * reallocation_factor).toInt
       if (_verbose) showUpdate("Reallocating to %d nodes\n", newsize)
       val newBuffer: ByteBuffer = ByteBuffer.allocateDirect(nodeSizeInBytes * newsize).order(ByteOrder.LITTLE_ENDIAN)
-//      if (size > 0) {
-//        val oo = apply(0).getV(new Array[Float](dim))
-//        println("ooooooooooooooooooooooooooooooo")
-//        println(oo.toSeq)
-//      }
 
-      //
-      //      ByteBuffer clone = ByteBuffer.allocate(original.capacity());
-
-      //      original.rewind();//copy from the beginning
-      //      clone.put(original);
-      //      original.rewind();
-      //      clone.flip();
-      //      return clone;
-      //
       underlying.rewind()
       newBuffer.put(underlying)
-      //      newBuffer.flip()
       underlying = newBuffer
-//      if (size > 0) {
-//        val nn = apply(0).getV(new Array[Float](dim))
-//        println("NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN")
-//        println(nn.toSeq)
-//      }
       size = newsize
     }
     size
@@ -160,15 +140,11 @@ trait AngularNodeOperations extends NodeOperations {
   override def setNDescendants(underlying: ByteBuffer, offsetInBytes: Int, nDescendants: Int): Unit = {
     underlying.position(offsetInBytes)
     underlying.putInt(nDescendants)
-//    println(s"setNDescendants: $nDescendants")
-//    require(getNDescendants(underlying, offsetInBytes) == nDescendants)
   }
 
   override def setChildren(underlying: ByteBuffer, offsetInBytes: Int, i: Int, v: Int): Unit = {
     underlying.position(offsetInBytes + 4 * (i + 1))
     underlying.putInt(v)
-//    println(s"setChildren: $i, $v")
-//    require(getChildren(underlying, offsetInBytes, i) == v)
   }
 
   override def setAllChildren(underlying: ByteBuffer, offsetInBytes: Int, indices: Array[Int]): Unit = {
@@ -176,18 +152,11 @@ trait AngularNodeOperations extends NodeOperations {
     underlying.asIntBuffer().put(indices)
     val out = getAllChildren(underlying, offsetInBytes, new Array[Int](indices.length))
     val in = indices
-//    println(s"setAllChildren: ${indices.mkString(",")}")
-//    require(out.zip(in).forall(x => x._1 == x._2))
   }
 
   override def setV(underlying: ByteBuffer, offsetInBytes: Int, v: Array[Float]): Unit = {
     underlying.position(offsetInBytes + 12)
     underlying.asFloatBuffer().put(v)
-    val out = getV(underlying, offsetInBytes, new Array[Float](v.length))
-    val in = v
-//    println(s"setV: in ${v.mkString(",")}")
-//    println(s"setV: out ${out.mkString(",")}")
-//    require(out.zip(in).forall(x => x._1 == x._2))
   }
 
   override def setValue(underlying: ByteBuffer, offsetInBytes: Int, v: Float, dim: Float): Unit = {
@@ -198,7 +167,6 @@ trait AngularNodeOperations extends NodeOperations {
       underlying.asFloatBuffer().put(i, v)
       i += 1
     }
-//    println(s"setValue: $v, $dim")
   }
 
   override def copy(src: ByteBuffer, srcOffsetInBytes: Int, dst: ByteBuffer, dstOffsetInBytes: Int, nodeSizeInBytes: Int): Unit = {
@@ -433,14 +401,9 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
     n.setChildren(1, 0)
     n.setNDescendants(1)
     n.setV(w)
-//    println(s"addItem: $item ${w.toSeq}")
 
     if (item >= _n_items)
       _n_items = item + 1
-
-//    if (item >= 60) {
-//      println(s"xxxxxxxxxxxxxxxxx ${_nodes(60).getV(new Array[Float](f)).toSeq}")
-//    }
 
   }
 
@@ -452,9 +415,6 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
       if (_verbose) showUpdate("pass %d...\n", _roots.length)
       val indices = new ArrayBuffer(_n_items) ++= (0 until _n_items)
       val x = _make_tree(indices)
-//      println(s"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-//      println(s"new root: $x")
-//      println(s"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
       _roots += x
     }
 
@@ -462,10 +422,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
     // This way we can load them faster without reading the whole file
     _alloc_size(_n_nodes + _roots.length)
     _roots.zipWithIndex.foreach { case (root, i) =>
-//      println(s"***************$root****************************")
-//      println(_get(root).getV(new Array[Float](f)).mkString(","))
       _get(_n_nodes + i).copyFrom(_get(root))
-//      println("*******************************************")
     }
     _n_nodes += _roots.length
 
@@ -500,8 +457,6 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
   }
 
   def _make_tree(indices: ArrayBuffer[Int]): Int = {
-
-
     if (indices.length == 1)
       return indices(0)
 
@@ -579,9 +534,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
     _alloc_size(_n_nodes + 1)
     val item = _n_nodes
     _n_nodes += 1
-//    println("-------------------------------------------")
     _get(item).copyFrom(m)
-//    println("-------------------------------------------")
 
     item
   }
@@ -609,9 +562,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
   val getAllNnsI = new Array[Int](_K)
 
   def _get_all_nns(v: Array[Float], n: Int, k: Int): Array[(Int, Float)] = {
-
     val v0 = getAllNnsV
-
     // implicit val ord = Ordering.by[(Float, Int), Float](x => x._1)
     val q = new mutable.PriorityQueue[(Float, Int)]
     val search_k = if (k == -1) n * _roots.length else k
@@ -626,15 +577,12 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
       val top = q.head
       val d = top._1
       val i = top._2
-//      println(s"d: $d, i: $i")
       val nd = _get(i)
       q.dequeue()
       val nDescendants = nd.getNDescendants
       if (nDescendants == 1 && i < _n_items) {
-//        println("case 1")
         nns += i
       } else if (nDescendants <= _K) {
-//        println("case 2")
         nd.getAllChildren(buffer)
         var jj = 0
         while (jj < nDescendants) {
