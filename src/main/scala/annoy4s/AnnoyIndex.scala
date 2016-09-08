@@ -51,6 +51,17 @@ case class N(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInByt
     require(ops == other.ops)
     ops.copy(other.underlying, other.offsetInBytes, underlying, offsetInBytes, nodeSizeInBytes)
   }
+
+  override def toString: String = {
+    val v = new Array[Float](dim)
+    val i = new Array[Int](dim)
+    val nDescendants = getNDescendants
+    val children = getAllChildren(i).take(nDescendants)
+    val vec = getV(v)
+    val j = offsetInBytes / nodeSizeInBytes
+    s"$j / $nDescendants / ${children.mkString(",")} / ${vec.mkString(",")}"
+  }
+
 }
 
 class Nodes[T <: Node](dim: Int, _size: Int) {
@@ -96,7 +107,7 @@ trait AngularNode extends Node {
 
   override def getNDescendants(underlying: ByteBuffer, offsetInBytes: Int): Int = {
     underlying.position(offsetInBytes)
-    underlying.getInt(0)
+    underlying.getInt()
   }
 
   override def getChildren(underlying: ByteBuffer, offsetInByte: Int, i: Int): Int = {
@@ -300,7 +311,10 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) extends AnnoyIndex
 
   def _get(item: Int): N = _nodes(item)
 
-  def _getOrNull(item: Int): N = ??? //_nodes(item)
+  def _getOrNull(item: Int): N = {
+    val n = _nodes(item)
+    if (n.getNDescendants == 0) null else n
+  }
 
   override def addItem(item: Int, w: Array[Float]): Unit = {
     _alloc_size(item + 1)
@@ -484,12 +498,12 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) extends AnnoyIndex
       if (nDescendants == 1 && i < _n_items) {
         nns += i
       } else if (nDescendants <= _K) {
-        nns ++= nd.getAllChildren(buffer).take(nDescendants)
-//        var jj = 0
-//        while (jj < nDescendants) {
-//          nns += buffer(jj)
-//          jj += 1
-//        }
+        nd.getAllChildren(buffer)
+        var jj = 0
+        while (jj < nDescendants) {
+          nns += buffer(jj)
+          jj += 1
+        }
       } else {
         val margin = distance.margin(nd, v, v0)
         q += math.min(d, +margin) -> nd.getChildren(1)

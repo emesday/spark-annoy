@@ -40,7 +40,6 @@ class AnnoySpec extends FlatSpec with Matchers {
     Array(i.getNnsByItem(2, 3).map(_._1)) should contain oneOf(Array(2, 0, 1), Array(2, 1, 0))
   }
 
-  /*
   it should "build/query time" in {
     val dimension = 50
     val numItems = 10000
@@ -67,5 +66,4 @@ class AnnoySpec extends FlatSpec with Matchers {
     }
     println(s"scala query ${System.currentTimeMillis() - s} ms")
   }
-  */
 }
