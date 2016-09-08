@@ -63,14 +63,8 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
     ops.setV(underlying, offsetInBytes, v)
 
   def copyFrom(other: Node): Unit = {
-//    val in = other.getV(new Array[Float](dim))
-//    println(s"copyFrom: in ${in.mkString(",")}")
     ops.copy(other.underlying, other.offsetInBytes, underlying, offsetInBytes, nodeSizeInBytes)
-//    val out = this.getV(new Array[Float](dim))
-//    println(s"copyFrom: out ${out.mkString(",")}")
-//    require(out.zip(in).forall(x => x._1 == x._2))
   }
-
 }
 
 class Nodes[T <: NodeOperations](dim: Int, _size: Int) {
@@ -404,7 +398,6 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
 
     if (item >= _n_items)
       _n_items = item + 1
-
   }
 
   def build(q: Int): Unit = {
@@ -430,10 +423,11 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
   }
 
   def save(filename: String): Boolean = {
-    _nodes.underlying.rewind()
-    val fs = new FileOutputStream(filename).getChannel()
+    _nodes.underlying.flip()
+    val fs = new FileOutputStream(filename).getChannel
     fs.write(_nodes.underlying)
     fs.close()
+    //load(filename)
     true
   }
 

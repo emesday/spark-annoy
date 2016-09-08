@@ -661,6 +661,7 @@ class AnnoySpec extends FlatSpec with Matchers {
     }
     var s = System.currentTimeMillis()
     i.build(10)
+    i.save("annoy-index-scala")
     println(s"scala build ${System.currentTimeMillis() - s} ms")
 
     s = System.currentTimeMillis()
