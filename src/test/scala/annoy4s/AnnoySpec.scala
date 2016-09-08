@@ -38,30 +38,30 @@ class AnnoySpec extends FlatSpec with Matchers {
     Array(i.getNnsByItem(2, 3).map(_._1)) should contain oneOf(Array(2, 0, 1), Array(2, 1, 0))
   }
 
-  it should "build/query time" in {
-    val dimension = 50
-    val numItems = 10000
-    val numTrials = 1
-
-    var s = System.currentTimeMillis()
-    val vectors = (0 until numItems).map { i =>
-      (i, Array.fill(dimension)(scala.util.Random.nextFloat()))
-    }.toSeq
-
-    s = System.currentTimeMillis()
-    val scalaVersion = new AnnoyIndex(dimension)
-    vectors.foreach { case (i, v) =>
-      scalaVersion.addItem(i, v)
-    }
-    scalaVersion.build(-1)
-    println(s"scala build ${System.currentTimeMillis() - s} ms")
-
-    s = System.currentTimeMillis()
-    (0 until numTrials).foreach { trial =>
-      (0 until numItems).foreach { item =>
-        scalaVersion.getNnsByItem(item, 100, -1)
-      }
-    }
-    println(s"scala query ${System.currentTimeMillis() - s} ms")
-  }
+//  it should "build/query time" in {
+//    val dimension = 50
+//    val numItems = 10000
+//    val numTrials = 1
+//
+//    var s = System.currentTimeMillis()
+//    val vectors = (0 until numItems).map { i =>
+//      (i, Array.fill(dimension)(scala.util.Random.nextFloat()))
+//    }.toSeq
+//
+//    s = System.currentTimeMillis()
+//    val scalaVersion = new AnnoyIndex(dimension)
+//    vectors.foreach { case (i, v) =>
+//      scalaVersion.addItem(i, v)
+//    }
+//    scalaVersion.build(-1)
+//    println(s"scala build ${System.currentTimeMillis() - s} ms")
+//
+//    s = System.currentTimeMillis()
+//    (0 until numTrials).foreach { trial =>
+//      (0 until numItems).foreach { item =>
+//        scalaVersion.getNnsByItem(item, 100, -1)
+//      }
+//    }
+//    println(s"scala query ${System.currentTimeMillis() - s} ms")
+//  }
 }

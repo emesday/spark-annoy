@@ -37,7 +37,7 @@ class AngularNode(f: Int) extends Node {
   private val underlying = new Array[Byte](AngularNode.s(f))
 
   override def nDescendants: Int = ByteBuffer.wrap(underlying, 0, 4).getInt
-  override def children(n: Int): Int = ByteBuffer.wrap(underlying, 4 * n, 4).getInt
+  override def children(n: Int): Int = ByteBuffer.wrap(underlying, 4 * (n + 1), 4).getInt
   override def getAllChildren(to: Array[Int]): Array[Int] = {
     ByteBuffer.wrap(underlying, 4, nDescendants * 4).asIntBuffer().get(to, 0, nDescendants)
     to
