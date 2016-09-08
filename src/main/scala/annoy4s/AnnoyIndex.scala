@@ -20,7 +20,6 @@ trait Node {
   def setV(v: Array[Float]): Unit
 
   def copyFrom(other: Node): Unit
-  def getBytes: Array[Byte]
 }
 
 object AngularNode {
@@ -33,12 +32,19 @@ class AngularNode(f: Int) extends Node {
   // n_children[0]: Int = 4
   // n_children[1]: Int = 4
   // v: Array[Float] = f * 4
-  private val underlying = new Array[Byte](AngularNode.s(f))
+  private var underlying = ByteBuffer.wrap(new Array[Byte](AngularNode.s(f)))
 
-  override def nDescendants: Int = ByteBuffer.wrap(underlying, 0, 4).getInt
-  override def children(n: Int): Int = ByteBuffer.wrap(underlying, 4 * (n + 1), 4).getInt
+  override def nDescendants: Int = {
+    underlying.rewind()
+    underlying.getInt(0)
+  }
+  override def children(n: Int): Int = {
+    underlying.rewind()
+    underlying.getInt(4 * (n + 1))
+  }
   override def getAllChildren(to: Array[Int]): Array[Int] = {
-    ByteBuffer.wrap(underlying, 4, nDescendants * 4).asIntBuffer().get(to, 0, nDescendants)
+    underlying.position(4)
+    underlying.asIntBuffer().get(to, 0, nDescendants)
     to
   }
 
@@ -47,33 +53,44 @@ class AngularNode(f: Int) extends Node {
     to
   }
 
-  override def vBuffer: FloatBuffer = ByteBuffer.wrap(underlying, 12, f * 4).asFloatBuffer()
+  override def vBuffer: FloatBuffer = {
+    underlying.position(12)
+    underlying.asFloatBuffer()
+  }
 
-  override def setNDescendants(n_descendants: Int) =
-    ByteBuffer.wrap(underlying, 0, 4).putInt(n_descendants)
+  override def setNDescendants(n_descendants: Int) = {
+    underlying.rewind()
+    underlying.putInt(0, n_descendants)
+  }
 
-  override def setChildren(n: Int)(v: Int) =
-    ByteBuffer.wrap(underlying, 4 * (n + 1), 4).putInt(v)
+  override def setChildren(n: Int)(v: Int) = {
+    underlying.rewind()
+    underlying.putInt(4 * (n + 1), v)
+  }
 
   override def setAllChildren(indices: Array[Int]): Unit = {
-    ByteBuffer.wrap(underlying, 4, indices.length * 4).asIntBuffer().put(indices, 0, indices.length)
+    underlying.position(4)
+    underlying.asIntBuffer().put(indices, 0, indices.length)
   }
 
   override def setV(v: Array[Float]) = {
-    ByteBuffer.wrap(underlying, 12, f * 4).asFloatBuffer().put(v)
+    underlying.position(12)
+    underlying.asFloatBuffer().put(v)
   }
-
-  override def getBytes: Array[Byte] = underlying
 
   override def copyFrom(other: Node): Unit = {
     other match {
       case o: AngularNode =>
-        scala.compat.Platform.arraycopy(o.underlying, 0, underlying, 0, o.underlying.length)
+        val clone = ByteBuffer.allocate(o.underlying.capacity())
+        o.underlying.rewind()
+        clone.put(o.underlying)
+        o.underlying.rewind()
+        clone.flip()
+        underlying = clone
       case _ =>
         throw new IllegalArgumentException
     }
   }
-
 }
 
 /*
