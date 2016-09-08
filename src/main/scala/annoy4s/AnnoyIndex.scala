@@ -7,8 +7,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random => RND}
 
-import com.github.fommil.netlib.BLAS
-
 import Functions._
 
 trait AnnoyIndexInterface {
@@ -213,16 +211,64 @@ object RandRandom extends Random {
   override def index(n: Int): Int = RND.nextInt(n)
 }
 
+trait BLASInterface {
+  def nrm2(x: Array[Float]): Float
+  def scal(sa: Float, sx: Array[Float]): Unit
+  def dot(sx: Array[Float], sy: Array[Float]): Float
+}
+
+//object NetlibBLAS extends BLASInterface {
+//
+//  val blas = com.github.fommil.netlib.BLAS.getInstance()
+//
+//  override def nrm2(x: Array[Float]): Float = blas.snrm2(x.length, x, 1)
+//
+//  override def scal(sa: Float, sx: Array[Float]): Unit = blas.sscal(sx.length, sa, sx, 1)
+//
+//  override def dot(sx: Array[Float], sy: Array[Float]): Float = blas.sdot(sx.length, sx, 1, sy, 1)
+//}
+
+object SimpleBLAS extends BLASInterface {
+  override def nrm2(x: Array[Float]): Float = {
+    var sq_norm: Double = 0
+    var z = 0
+    while (z < x.length) {
+      sq_norm += x(z) * x(z)
+      z += 1
+    }
+    math.sqrt(sq_norm).toFloat
+  }
+
+  override def scal(sa: Float, sx: Array[Float]): Unit = {
+    val norm = nrm2(sx)
+    var z = 0
+    while (z < sx.length) {
+      sx(z) /= norm
+      z += 1
+    }
+  }
+
+  override def dot(sx: Array[Float], sy: Array[Float]): Float = {
+    var dot: Float = 0
+    var z = 0
+    while (z < sx.length) {
+      dot += sx(z) * sy(z)
+      z += 1
+    }
+    dot
+  }
+}
+
 object Functions {
   val Zero = 0f
   val One = 1f
-  val blas = BLAS.getInstance()
+  val blas = SimpleBLAS
 
   def showUpdate(text: String, xs: Any*): Unit = Console.err.print(text.format(xs: _*))
 
-  def getNorm(v: Array[Float]): Float = blas.snrm2(v.length, v, 1)
+  def getNorm(v: Array[Float]): Float = blas.nrm2(v)
 
-  def normalize(v: Array[Float]): Unit = blas.sscal(v.length, One / getNorm(v), v, 1)
+  def normalize(v: Array[Float]): Unit = blas.scal(One / getNorm(v), v)
 
   def twoMeans(nodes: ArrayBuffer[N], cosine: Boolean, iv: Array[Float], jv: Array[Float], metric: Distance, rand: Random): Unit = {
     val iterationSteps = 200
@@ -287,16 +333,14 @@ object Angular extends Distance {
 
   override def distance(x: Array[Float], y: Array[Float]): Float = {
     require(x.length == y.length)
-    val pp = blas.sdot(x.length, x, 1, x, 1)
-    val qq = blas.sdot(y.length, y, 1, y, 1)
-    val pq = blas.sdot(x.length, x, 1, y, 1)
+    val pp = blas.dot(x, x)
+    val qq = blas.dot(y, y)
+    val pq = blas.dot(x, y)
     val ppqq: Double = pp * qq
     if (ppqq > 0) (2.0 - 2.0 * pq / Math.sqrt(ppqq)).toFloat else 2.0f
   }
 
-  override def margin(n: N, y: Array[Float], buffer: Array[Float]): Float = {
-    blas.sdot(y.length, n.getV(buffer), 1, y, 1)
-  }
+  override def margin(n: N, y: Array[Float], buffer: Array[Float]): Float = blas.dot(n.getV(buffer), y)
 
   override def side(n: N, y: Array[Float], random: Random, buffer: Array[Float]): Boolean = {
     val dot = margin(n, y, buffer)
@@ -311,14 +355,14 @@ object Angular extends Distance {
     val buffer = new Array[Float](f)
     val bestIv = new Array[Float](f)
     val bestJv = new Array[Float](f)
-    Functions.twoMeans(nodes, true, bestIv, bestJv, this, rand)
+    twoMeans(nodes, true, bestIv, bestJv, this, rand)
     var z = 0
     n.getV(buffer)
     while (z < f) {
       buffer(z) = bestIv(z) - bestJv(z)
       z += 1
     }
-    Functions.normalize(buffer)
+    normalize(buffer)
   }
 
   override def normalizeDistance(distance: Float): Float = {
