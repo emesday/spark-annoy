@@ -1,5 +1,6 @@
 package annoy4s
 
+import annoy4s.profiling.AnnoyDataset
 import org.scalatest.{FlatSpec, Matchers}
 
 class AnnoySpec extends FlatSpec with Matchers {

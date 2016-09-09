@@ -1,4 +1,4 @@
-package annoy4s
+package annoy4s.profiling
 
 object AnnoyDataset {
 

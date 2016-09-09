@@ -1,14 +1,15 @@
-package annoy4s
+package annoy4s.profiling
 
-import org.scalatest.{FlatSpec, Matchers}
+import annoy4s.AnnoyIndex
 
-class AnnoyBuildProfiling extends FlatSpec with Matchers {
+object AnnoyBuildProfiling  {
 
   import AnnoyDataset._
 
-  Thread.sleep(3000L) // to run VisualVM
+  def main(args: Array[String]) {
 
-  it should "profiling `build`" in {
+    Thread.sleep(3000L) // to run VisualVM
+
     val f = dataset.head.length
     elapsed("build", 3000) {
       val i = new AnnoyIndex(f)

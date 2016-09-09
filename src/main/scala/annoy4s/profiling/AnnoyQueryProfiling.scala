@@ -1,14 +1,15 @@
-package annoy4s
+package annoy4s.profiling
 
-import org.scalatest.{FlatSpec, Matchers}
+import annoy4s.AnnoyIndex
 
-class AnnoyQueryProfiling extends FlatSpec with Matchers {
+object AnnoyQueryProfiling {
 
   import AnnoyDataset._
 
-  Thread.sleep(3000L) // to run VisualVM
+  def main(args: Array[String]) {
 
-  it should "profiling `query`" in {
+    Thread.sleep(3000L) // to run VisualVM
+
     val f = dataset.head.length
     val i = new AnnoyIndex(f)
     i.load("annoy-index-scala", useHeap = false)
