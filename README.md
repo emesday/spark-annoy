@@ -84,9 +84,13 @@ val itemSimilarity: RDD[(Int, Array[(Int, Float)])] =
  - For more information of ALS see this [link](http://spark.apache.org/docs/2.0.0/ml-collaborative-filtering.html)
 
 
-# Install
+# Installation
 
-Just add AnnoyIndex.scala file to your project. (at this time ...)
+```
+resolvers += Resolver.bintrayRepo("mskimm", "maven")
+
+libraryDependencies += "com.github.mskimm" %% "annoy4s" % "0.0.1"
+```
 
 # TODO
   - Angular: Done
