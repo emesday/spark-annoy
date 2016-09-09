@@ -3,41 +3,13 @@ package annoy4s
 import org.scalatest.{FlatSpec, Matchers}
 
 class AnnoySpec extends FlatSpec with Matchers {
-  /**
-    * Reallocating to 1 nodes
-    * Reallocating to 2 nodes
-    * Reallocating to 3 nodes
-    * pass 0...
-    * Reallocating to 5 nodes
-    * pass 1...
-    * pass 2...
-    * Reallocating to 7 nodes
-    * pass 3...
-    * pass 4...
-    * Reallocating to 10 nodes
-    * pass 5...
-    * pass 6...
-    * pass 7...
-    * Reallocating to 14 nodes
-    * pass 8...
-    * pass 9...
-    * Reallocating to 23 nodes
-    * has 23 nodes
-    */
-  it should "test_get_nns_by_item" in {
-    val f = 3
-    val i = new AnnoyIndex(f)
-    i.verbose(true)
-    i.addItem(0, Array[Float](2, 1, 0))
-    i.addItem(1, Array[Float](1, 2, 0))
-    i.addItem(2, Array[Float](0, 0, 1))
-    i.build(10)
 
-    i.save("annoy-index-scala")
-
-    i.getNnsByItem(0, 3).map(_._1) shouldBe Array(0, 1, 2)
-    i.getNnsByItem(1, 3).map(_._1) shouldBe Array(1, 0, 2)
-    Array(i.getNnsByItem(2, 3).map(_._1)) should contain oneOf(Array(2, 0, 1), Array(2, 1, 0))
+  def elapsed[T](title: String)(f: => T): T = {
+    println(title + " ...")
+    val s = System.currentTimeMillis()
+    val r = f
+    println(s"    - elapsed (ms): ${System.currentTimeMillis() - s}")
+    r
   }
 
   val dataset = Seq(
@@ -659,19 +631,32 @@ class AnnoySpec extends FlatSpec with Matchers {
     dataset.zipWithIndex.foreach { case (v, j) =>
       i.addItem(j, v)
     }
-    var s = System.currentTimeMillis()
-    i.build(10)
-    i.save("annoy-index-scala")
-    println(s"scala build ${System.currentTimeMillis() - s} ms")
 
-    s = System.currentTimeMillis()
-    (0 until 100).foreach { _ =>
-      dataset.zipWithIndex.foreach { case (_, j) =>
-        val o = i.getNnsByItem(j, 3)
-        o.map(_._1) shouldBe trueNns(j)
+    elapsed("building") {
+      i.build(10)
+    }
+
+    elapsed(s"qurery on ${i.mode}") {
+      (0 until 100).foreach { _ =>
+        dataset.zipWithIndex.foreach { case (_, j) =>
+          val o = i.getNnsByItem(j, 3)
+          o.map(_._1) shouldBe trueNns(j)
+        }
       }
     }
-    println(s"scala query ${System.currentTimeMillis() - s} ms")
+
+    elapsed("saving / unload / load") {
+      i.save("annoy-index-scala")
+    }
+
+    elapsed(s"qurery on ${i.mode}") {
+      (0 until 100).foreach { _ =>
+        dataset.zipWithIndex.foreach { case (_, j) =>
+          val o = i.getNnsByItem(j, 3)
+          o.map(_._1) shouldBe trueNns(j)
+        }
+      }
+    }
   }
 
   /*

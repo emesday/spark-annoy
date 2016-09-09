@@ -1,12 +1,13 @@
 package annoy4s
 
-import java.io.FileOutputStream
+import java.io.{FileOutputStream, RandomAccessFile}
+import java.nio.channels.FileChannel
 import java.nio.{ByteBuffer, ByteOrder}
 
 import annoy4s.Functions._
 
 import scala.collection.mutable
-import scala.collection.mutable.{ListBuffer, ArrayBuffer}
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.util.{Random => RND}
 
 trait NodeOperations {
@@ -33,7 +34,7 @@ trait NodeOperations {
 
 }
 
-case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, ops: AngularNodeOperations) {
+case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, ops: AngularNodeOperations, readonly: Boolean) {
 
   def getNDescendants: Int =
     ops.getNDescendants(underlying, offsetInBytes)
@@ -47,27 +48,72 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
   def getV(dst: Array[Float]): Array[Float] =
     ops.getV(underlying, offsetInBytes, dst)
 
-  def setValue(v: Float): Unit =
+  def setValue(v: Float): Unit = {
+    require(!readonly)
     ops.setValue(underlying, offsetInBytes, v, dim)
+  }
 
-  def setNDescendants(nDescendants: Int) =
+  def setNDescendants(nDescendants: Int) = {
+    require(!readonly)
     ops.setNDescendants(underlying, offsetInBytes, nDescendants)
+  }
 
-  def setChildren(i: Int, v: Int): Unit =
+  def setChildren(i: Int, v: Int): Unit = {
+    require(!readonly)
     ops.setChildren(underlying, offsetInBytes, i, v)
+  }
 
-  def setAllChildren(indices: Array[Int]): Unit =
+  def setAllChildren(indices: Array[Int]): Unit = {
+    require(!readonly)
     ops.setAllChildren(underlying, offsetInBytes, indices)
+  }
 
-  def setV(v: Array[Float]): Unit =
+  def setV(v: Array[Float]): Unit = {
+    require(!readonly)
     ops.setV(underlying, offsetInBytes, v)
+  }
 
   def copyFrom(other: Node): Unit = {
+    require(!readonly)
     ops.copy(other.underlying, other.offsetInBytes, underlying, offsetInBytes, nodeSizeInBytes)
   }
 }
 
-class Nodes[T <: NodeOperations](dim: Int, _size: Int) {
+abstract class bufferType {
+  val bufferType: String
+  def ensureSize(n: Int, _verbose: Boolean): Int
+  def apply(i: Int): Node
+  def alloc: Node
+  def getSize: Int
+}
+
+class MappedNodes[T <: NodeOperations](dim: Int, filename: String) extends bufferType {
+
+  val memoryMappedFile = new RandomAccessFile(filename, "r")
+  val fileSize = memoryMappedFile.length()
+  val underlying = memoryMappedFile.getChannel.map(
+    FileChannel.MapMode.READ_ONLY, 0, fileSize)
+    .order(ByteOrder.LITTLE_ENDIAN)
+
+  val (nodeSizeInBytes, childrenCapacity, ops) =  {
+    //    case cls if classOf[AngularNode].isAssignableFrom(cls) =>
+    (AngularNodeOperations.nodeSizeInBytes(dim), AngularNodeOperations.childrenCapacity(dim), AngularNodeOperations)
+  }
+
+  override val bufferType = underlying.getClass.getSimpleName
+
+  override def getSize: Int = fileSize.toInt
+
+  override def ensureSize(n: Int, _verbose: Boolean): Int = ???
+
+  override def alloc: Node = ???
+
+  override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, ops, true)
+
+  def close() = ???
+}
+
+class HeapNodes[T <: NodeOperations](dim: Int, _size: Int) extends bufferType {
 
   val reallocation_factor = 1.3
 
@@ -79,7 +125,11 @@ class Nodes[T <: NodeOperations](dim: Int, _size: Int) {
   var size = _size
   var underlying = ByteBuffer.allocate(nodeSizeInBytes * size).order(ByteOrder.LITTLE_ENDIAN)
 
-  def ensureSize(n: Int, _verbose: Boolean): Int = {
+  override val bufferType: String = underlying.getClass.getSimpleName
+
+  override def getSize: Int = size
+
+  override def ensureSize(n: Int, _verbose: Boolean): Int = {
     if (n > size) {
       val newsize = math.max(n, (size + 1) * reallocation_factor).toInt
       if (_verbose) showUpdate("Reallocating to %d nodes\n", newsize)
@@ -93,9 +143,16 @@ class Nodes[T <: NodeOperations](dim: Int, _size: Int) {
     size
   }
 
-  def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, ops)
+  var readonly = false
 
-  def alloc: Node = Node(dim, nodeSizeInBytes, ByteBuffer.allocate(nodeSizeInBytes).order(ByteOrder.LITTLE_ENDIAN), 0, ops)
+  override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, ops, readonly)
+
+  override def alloc: Node = Node(dim, nodeSizeInBytes, ByteBuffer.allocate(nodeSizeInBytes).order(ByteOrder.LITTLE_ENDIAN), 0, ops, readonly)
+
+  def prepareToWrite(): Unit = {
+    readonly = true
+    underlying.rewind()
+  }
 }
 
 /**
@@ -348,7 +405,6 @@ object Angular extends Distance {
       buffer(z) = bestIv(z) - bestJv(z)
       z += 1
     }
-//    println(s"buffer: ${buffer.mkString(",")}")
     normalize(buffer)
     n.setV(buffer)
   }
@@ -369,14 +425,15 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
   val _s: Int = AngularNodeOperations.nodeSizeInBytes(f)
   val _K: Int = AngularNodeOperations.childrenCapacity(f)
   var _verbose: Boolean = false
-  var _fd = 0
-  var _nodes: Nodes[AngularNodeOperations] = null
+  var _nodes: bufferType = null
   val _roots = new ArrayBuffer[Int]()
   var _loaded: Boolean = false
   var _n_items: Int = 0
   var _n_nodes: Int = 0
 
   reinitialize()
+
+  def mode: String = _nodes.bufferType
 
   def get_f(): Int = f
 
@@ -417,36 +474,79 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
     _roots.zipWithIndex.foreach { case (root, i) =>
       _get(_n_nodes + i).copyFrom(_get(root))
     }
+    _nodes.asInstanceOf[HeapNodes[_]].underlying.flip()
+    _nodes.asInstanceOf[HeapNodes[_]].prepareToWrite()
     _n_nodes += _roots.length
 
     if (_verbose) showUpdate("has %d nodes\n", _n_nodes)
   }
 
   def save(filename: String): Boolean = {
-    _nodes.underlying.flip()
-    val fs = new FileOutputStream(filename).getChannel
-    fs.write(_nodes.underlying)
-    fs.close()
-    //load(filename)
-    true
+    _nodes match {
+      case nodes: HeapNodes[_] =>
+        nodes.prepareToWrite()
+        val fs = new FileOutputStream(filename).getChannel
+        fs.write(nodes.underlying)
+        fs.close()
+        unload()
+        load(filename)
+      case _ =>
+        false
+    }
   }
 
   def reinitialize(): Unit = {
-    _fd = 0
-    _nodes = new Nodes[AngularNodeOperations](f, 0)
+    _nodes = null
     _loaded = false
     _n_items = 0
     _n_nodes = 0
     _roots.clear()
   }
 
-  def unload(): Unit = ???
+  def unload(): Unit = {
+    _nodes match {
+      case mappedNodes: MappedNodes[_] =>
+        mappedNodes.close()
+        _nodes = null
+      case heapNodes: HeapNodes[_] =>
+        _nodes = null
+    }
+    reinitialize()
+    if (_verbose) showUpdate("unloaded\n")
+  }
 
-  def load(filename: String): Boolean = ???
+  def load(filename: String): Boolean = {
+    _nodes = new MappedNodes[AngularNodeOperations](f, filename)
+    _n_nodes = _nodes.getSize / _s
+
+    var m = -1
+    var i = _n_nodes - 1
+    while (i >= 0) {
+      val k = _get(i).getNDescendants
+      if (m == -1 || k == m) {
+        _roots += i
+        m = k
+      } else {
+        i = 0 // break
+      }
+      i -= 1
+    }
+
+    if (_roots.length > 1 && _get(_roots.head).getChildren(0) == _get(_roots.last).getChildren(0)) {
+      _roots -= _roots.last // pop_back
+    }
+    _loaded = true
+    _n_items = m
+
+    if (_verbose) showUpdate("found %d roots with degree %d\n", _roots.length, m)
+    true
+  }
 
   def verbose(v: Boolean): Unit = this._verbose = v
 
   private def _alloc_size(n: Int): Unit = {
+    if (_nodes == null)
+      _nodes = new HeapNodes[AngularNodeOperations](f, 0)
     _nodes.ensureSize(n, _verbose)
   }
 
