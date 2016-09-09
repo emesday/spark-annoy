@@ -4,18 +4,13 @@ import java.io.RandomAccessFile
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 
-class MappedNodeContainer[T <: NodeIO](dim: Int, filename: String) extends NodeContainer {
+class MappedNodeContainer(dim: Int, filename: String, io: NodeIO) extends NodeContainer(dim, io) {
 
   val memoryMappedFile = new RandomAccessFile(filename, "r")
   val fileSize = memoryMappedFile.length()
   val underlying = memoryMappedFile.getChannel.map(
     FileChannel.MapMode.READ_ONLY, 0, fileSize)
     .order(ByteOrder.LITTLE_ENDIAN)
-
-  val (nodeSizeInBytes, childrenCapacity, ops) =  {
-    //    case cls if classOf[AngularNode].isAssignableFrom(cls) =>
-    (AngularNodeIO.nodeSizeInBytes(dim), AngularNodeIO.childrenCapacity(dim), AngularNodeIO)
-  }
 
   override val bufferType = underlying.getClass.getSimpleName
 
@@ -25,7 +20,7 @@ class MappedNodeContainer[T <: NodeIO](dim: Int, filename: String) extends NodeC
 
   override def newNode: Node = throw new IllegalAccessError("readonly")
 
-  override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, ops, true)
+  override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, io, true)
 
   override def flip(): Unit = throw new IllegalAccessError("readonly")
 

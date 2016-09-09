@@ -1,6 +1,6 @@
 package annoy4s
 
-object EuclideanNodeIO extends EuclideanNodeIO
+import java.nio.ByteBuffer
 
 /**
   * n_descendants: Int = 4
@@ -17,4 +17,7 @@ trait EuclideanNodeIO extends NodeIO {
   override val offsetChildren: Int = 8
   override val offsetValue: Int = 16
 
+  override def setA(underlying: ByteBuffer, offsetInBytes: Int, a: Float): Unit = {
+
+  }
 }

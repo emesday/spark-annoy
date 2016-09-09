@@ -2,47 +2,52 @@ package annoy4s
 
 import java.nio.ByteBuffer
 
-case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, ops: AngularNodeIO, readonly: Boolean) {
+case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, io: NodeIO, readonly: Boolean) {
 
   def getNDescendants: Int =
-    ops.getNDescendants(underlying, offsetInBytes)
+    io.getNDescendants(underlying, offsetInBytes)
 
   def getChildren(i: Int): Int =
-    ops.getChildren(underlying, offsetInBytes, i)
+    io.getChildren(underlying, offsetInBytes, i)
 
   def getAllChildren(dst: Array[Int]): Array[Int] =
-    ops.getAllChildren(underlying, offsetInBytes, dst)
+    io.getAllChildren(underlying, offsetInBytes, dst)
 
   def getVector(dst: Array[Float]): Array[Float] =
-    ops.getV(underlying, offsetInBytes, dst)
+    io.getV(underlying, offsetInBytes, dst)
 
   def setValue(v: Float): Unit = {
     require(!readonly)
-    ops.setValue(underlying, offsetInBytes, v, dim)
+    io.setValue(underlying, offsetInBytes, v, dim)
   }
 
   def setNDescendants(nDescendants: Int) = {
     require(!readonly)
-    ops.setNDescendants(underlying, offsetInBytes, nDescendants)
+    io.setNDescendants(underlying, offsetInBytes, nDescendants)
   }
 
   def setChildren(i: Int, v: Int): Unit = {
     require(!readonly)
-    ops.setChildren(underlying, offsetInBytes, i, v)
+    io.setChildren(underlying, offsetInBytes, i, v)
   }
 
   def setAllChildren(indices: Array[Int]): Unit = {
     require(!readonly)
-    ops.setAllChildren(underlying, offsetInBytes, indices)
+    io.setAllChildren(underlying, offsetInBytes, indices)
   }
 
   def setV(v: Array[Float]): Unit = {
     require(!readonly)
-    ops.setV(underlying, offsetInBytes, v)
+    io.setV(underlying, offsetInBytes, v)
+  }
+
+  def setA(a: Float): Unit = {
+    require(!readonly)
+    io.setA(underlying, offsetInBytes, a)
   }
 
   def copyFrom(other: Node): Unit = {
     require(!readonly)
-    ops.copy(other.underlying, other.offsetInBytes, underlying, offsetInBytes, nodeSizeInBytes)
+    io.copy(other.underlying, other.offsetInBytes, underlying, offsetInBytes, nodeSizeInBytes)
   }
 }

@@ -7,21 +7,28 @@ import annoy4s.Functions._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
+class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def this(f: Int, random: Random) = this(f, Angular, random)
 
-  def this(f: Int, metric: Distance) = this(f, metric, RandRandom)
+  def this(f: Int, metric: Metric) = this(f, metric, RandRandom)
 
   def this(f: Int) = this(f, Angular, RandRandom)
 
-  private val nodeSizeInBytes: Int = AngularNodeIO.nodeSizeInBytes(dim)
-  private val childrenCapacity: Int = AngularNodeIO.childrenCapacity(dim)
+  private val nodeSizeInBytes: Int = metric.nodeSizeInBytes(dim)
+
+  private val childrenCapacity: Int = metric.childrenCapacity(dim)
+
   private var verbose0: Boolean = false
+
   private var nodes: NodeContainer = null
+
   private val roots = new ArrayBuffer[Int]()
+
   private var loaded: Boolean = false
+
   private var nItems: Int = 0
+
   private var nNodes: Int = 0
 
   reinitialize()
@@ -68,7 +75,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
 
   def save(filename: String, reload: Boolean = true): Boolean = {
     nodes match {
-      case heapNodes: HeapNodeContainer[_] =>
+      case heapNodes: HeapNodeContainer =>
         heapNodes.prepareToWrite()
         val fs = new FileOutputStream(filename).getChannel
         fs.write(heapNodes.underlying)
@@ -85,7 +92,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
 
   def unload(): Unit = {
     nodes match {
-      case mappedNodes: MappedNodeContainer[_] =>
+      case mappedNodes: MappedNodeContainer =>
         mappedNodes.close()
       case _ =>
     }
@@ -94,7 +101,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
   }
 
   def load(filename: String, useHeap: Boolean = false): Boolean = {
-    val nodesOnFile = new MappedNodeContainer[AngularNodeIO](dim, filename)
+    val nodesOnFile = new MappedNodeContainer(dim, filename, metric)
     nodes = nodesOnFile
     nNodes = nodes.getSize / nodeSizeInBytes
     var m = -1
@@ -117,7 +124,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
     nItems = m
 
     if (useHeap) {
-      val nodesOnHeap = new HeapNodeContainer[AngularNodeIO](dim, nNodes)
+      val nodesOnHeap = new HeapNodeContainer(dim, nNodes, metric)
       nodesOnFile.underlying.rewind()
       nodesOnHeap.underlying.put(nodesOnFile.underlying)
       nodes = nodesOnHeap
@@ -169,7 +176,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
           jj += 1
         }
       } else {
-        val margin = distance.margin(nd, v, vectorBuffer)
+        val margin = metric.margin(nd, v, vectorBuffer)
         q += math.min(d, +margin) -> nd.getChildren(1)
         q += math.min(d, -margin) -> nd.getChildren(0)
       }
@@ -186,7 +193,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
       val j = sortedNns(i)
       if (j != last) {
         last = j
-        nnsDist += distance.distance(v, getNode(j).getVector(vectorBuffer)) -> j
+        nnsDist += metric.distance(v, getNode(j).getVector(vectorBuffer)) -> j
       }
       i += 1
     }
@@ -199,13 +206,13 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
 
     partialSorted
       .map { case (dist, item) =>
-        (item, distance.normalizeDistance(dist))
+        (item, metric.normalizeDistance(dist))
       }
       .toArray
   }
 
   def getDistance(i: Int, j: Int): Float = {
-    distance.distance(nodes(i).getVector(new Array[Float](dim)), nodes(j).getVector(new Array[Float](dim)))
+    metric.distance(nodes(i).getVector(new Array[Float](dim)), nodes(j).getVector(new Array[Float](dim)))
   }
 
   private def getNode(item: Int): Node = nodes(item)
@@ -225,7 +232,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
 
   private def ensureSize(n: Int): Unit = {
     if (nodes == null)
-      nodes = new HeapNodeContainer[AngularNodeIO](dim, 0)
+      nodes = new HeapNodeContainer(dim, 0, metric)
     nodes.ensureSize(n, verbose0)
   }
 
@@ -258,7 +265,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
     }
 
     val m = nodes.newNode
-    distance.createSplit(children, dim, random, m)
+    metric.createSplit(children, dim, random, m)
 
     val vectorBuffer = new Array[Float](dim)
     val sideBuffer = new Array[Float](dim)
@@ -267,7 +274,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
       val j = indices(i)
       val n = getNodeOrNull(j)
       if (n != null) {
-        val side = if (distance.side(m, n.getVector(vectorBuffer), random, sideBuffer)) 1 else 0
+        val side = if (metric.side(m, n.getVector(vectorBuffer), random, sideBuffer)) 1 else 0
         childrenIndices(side) += j
       }
       i += 1

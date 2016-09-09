@@ -3,9 +3,13 @@ package annoy4s
 import scala.collection.mutable.ArrayBuffer
 
 trait BLASInterface {
+
   def nrm2(x: Array[Float]): Float
+
   def scal(sa: Float, sx: Array[Float]): Unit
+
   def dot(sx: Array[Float], sy: Array[Float]): Float
+
 }
 
 //object NetlibBLAS extends BLASInterface {
@@ -20,6 +24,7 @@ trait BLASInterface {
 //}
 
 object SimpleBLAS extends BLASInterface {
+
   override def nrm2(x: Array[Float]): Float = {
     var sqNorm: Double = 0
     var z = 0
@@ -48,12 +53,17 @@ object SimpleBLAS extends BLASInterface {
     }
     dot
   }
+
 }
 
 object Functions {
+
   val Zero = 0f
+
   val One = 1f
+
   val blas = SimpleBLAS
+
   val iterationSteps = 200
 
   def showUpdate(text: String, xs: Any*): Unit = Console.err.print(text.format(xs: _*))
@@ -110,6 +120,7 @@ object Functions {
 
 // code from https://github.com/scalanlp/breeze/blob/42c2e2522cf09259a34879e1c3b13b81176e410f/math/src/main/scala/breeze/util/TopK.scala
 class TopK[T](k : Int, reversed: Boolean = false)(implicit ord : Ordering[T]) extends Iterable[T] {
+
   import scala.collection.JavaConversions._
 
   val _ord = if (reversed) ord.reverse else ord
@@ -131,3 +142,4 @@ class TopK[T](k : Int, reversed: Boolean = false)(implicit ord : Ordering[T]) ex
   override def size = keys.size
 
 }
+

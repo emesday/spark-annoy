@@ -2,16 +2,11 @@ package annoy4s
 
 import java.nio.{ByteBuffer, ByteOrder}
 
-class HeapNodeContainer[T <: NodeIO](dim: Int, _size: Int) extends NodeContainer {
+class HeapNodeContainer(dim: Int, _size: Int, io: NodeIO) extends NodeContainer(dim, io) {
 
   import Functions._
 
   val reallocation_factor = 1.3
-
-  val (nodeSizeInBytes, childrenCapacity, ops) =  {
-    //    case cls if classOf[AngularNode].isAssignableFrom(cls) =>
-    (AngularNodeIO.nodeSizeInBytes(dim), AngularNodeIO.childrenCapacity(dim), AngularNodeIO)
-  }
 
   var size = _size
   var underlying = ByteBuffer.allocate(nodeSizeInBytes * size).order(ByteOrder.LITTLE_ENDIAN)
@@ -36,9 +31,10 @@ class HeapNodeContainer[T <: NodeIO](dim: Int, _size: Int) extends NodeContainer
 
   var readonly = false
 
-  override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, ops, readonly)
+  override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, io, readonly)
 
-  override def newNode: Node = Node(dim, nodeSizeInBytes, ByteBuffer.allocate(nodeSizeInBytes).order(ByteOrder.LITTLE_ENDIAN), 0, ops, readonly)
+  override def newNode: Node = Node(dim, nodeSizeInBytes,
+    ByteBuffer.allocate(nodeSizeInBytes).order(ByteOrder.LITTLE_ENDIAN), 0, io, readonly)
 
   override def flip(): Unit = underlying.flip()
 

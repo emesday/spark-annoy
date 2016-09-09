@@ -2,19 +2,23 @@ package annoy4s
 
 import scala.collection.mutable.ArrayBuffer
 
-object Angular extends Metric with AngularNodeIO {
+object Euclidean extends Metric with EuclideanNodeIO {
 
   import Functions._
 
-  override val name = "angular"
+  override val name = "euclidean"
 
   override def distance(x: Array[Float], y: Array[Float]): Float = {
     require(x.length == y.length)
-    val pp = blas.dot(x, x)
-    val qq = blas.dot(y, y)
-    val pq = blas.dot(x, y)
-    val ppqq: Double = pp * qq
-    if (ppqq > 0) (2.0 - 2.0 * pq / Math.sqrt(ppqq)).toFloat else 2.0f
+    var i = 0
+    var d: Float = 0f
+    var t: Float = 0f
+    while (i < x.length) {
+      t = x(i) - y(i)
+      d += t * t
+      i += 1
+    }
+    d
   }
 
   override def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float = blas.dot(n.getVector(buffer), y)
@@ -31,7 +35,7 @@ object Angular extends Metric with AngularNodeIO {
   override def createSplit(nodes: ArrayBuffer[Node], dim: Int, rand: Random, n: Node): Unit = {
     val bestIv = new Array[Float](dim)
     val bestJv = new Array[Float](dim)
-    twoMeans(nodes, true, bestIv, bestJv, this, rand)
+    twoMeans(nodes, false, bestIv, bestJv, this, rand)
 
     val vectorBuffer = n.getVector(new Array[Float](dim))
     var z = 0
@@ -40,7 +44,14 @@ object Angular extends Metric with AngularNodeIO {
       z += 1
     }
     normalize(vectorBuffer)
+    var a = 0f
+    z = 0
+    while (z < dim) {
+      a += -vectorBuffer(z) * (bestIv(z) + bestJv(z)) / 2
+      z += 1
+    }
     n.setV(vectorBuffer)
+    n.setA(a)
   }
 
   override def normalizeDistance(distance: Float): Float = {
