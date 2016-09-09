@@ -8,8 +8,6 @@ object AnnoyQueryProfiling {
 
   def main(args: Array[String]) {
 
-    Thread.sleep(3000L) // to run VisualVM
-
     val f = dataset.head.length
     val i = new AnnoyIndex(f)
     i.load("annoy-index-scala", useHeap = false)
@@ -19,6 +17,7 @@ object AnnoyQueryProfiling {
       }
     }
     i.unload()
+
   }
 }
 

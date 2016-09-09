@@ -2,7 +2,7 @@ package annoy4s
 
 import java.nio.{ByteBuffer, ByteOrder}
 
-class HeapNodeContainer[T <: NodeOperations](dim: Int, _size: Int) extends NodeContainer {
+class HeapNodeContainer[T <: NodeIO](dim: Int, _size: Int) extends NodeContainer {
 
   import Functions._
 
@@ -10,7 +10,7 @@ class HeapNodeContainer[T <: NodeOperations](dim: Int, _size: Int) extends NodeC
 
   val (nodeSizeInBytes, childrenCapacity, ops) =  {
     //    case cls if classOf[AngularNode].isAssignableFrom(cls) =>
-    (AngularNodeOperations.nodeSizeInBytes(dim), AngularNodeOperations.childrenCapacity(dim), AngularNodeOperations)
+    (AngularNodeIO.nodeSizeInBytes(dim), AngularNodeIO.childrenCapacity(dim), AngularNodeIO)
   }
 
   var size = _size

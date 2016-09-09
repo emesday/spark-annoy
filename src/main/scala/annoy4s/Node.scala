@@ -2,7 +2,7 @@ package annoy4s
 
 import java.nio.ByteBuffer
 
-case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, ops: AngularNodeOperations, readonly: Boolean) {
+case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, ops: AngularNodeIO, readonly: Boolean) {
 
   def getNDescendants: Int =
     ops.getNDescendants(underlying, offsetInBytes)

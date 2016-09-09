@@ -8,8 +8,6 @@ object AnnoyBuildProfiling  {
 
   def main(args: Array[String]) {
 
-    Thread.sleep(3000L) // to run VisualVM
-
     val f = dataset.head.length
     elapsed("build", 3000) {
       val i = new AnnoyIndex(f)
@@ -19,6 +17,7 @@ object AnnoyBuildProfiling  {
       i.build(10)
       i.save("annoy-index-scala")
       i.unload()
+
     }
   }
 }

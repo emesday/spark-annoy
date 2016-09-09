@@ -15,8 +15,8 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
 
   def this(f: Int) = this(f, Angular, RandRandom)
 
-  private val nodeSizeInBytes: Int = AngularNodeOperations.nodeSizeInBytes(dim)
-  private val childrenCapacity: Int = AngularNodeOperations.childrenCapacity(dim)
+  private val nodeSizeInBytes: Int = AngularNodeIO.nodeSizeInBytes(dim)
+  private val childrenCapacity: Int = AngularNodeIO.childrenCapacity(dim)
   private var verbose0: Boolean = false
   private var nodes: NodeContainer = null
   private val roots = new ArrayBuffer[Int]()
@@ -94,7 +94,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
   }
 
   def load(filename: String, useHeap: Boolean = false): Boolean = {
-    val nodesOnFile = new MappedNodeContainer[AngularNodeOperations](dim, filename)
+    val nodesOnFile = new MappedNodeContainer[AngularNodeIO](dim, filename)
     nodes = nodesOnFile
     nNodes = nodes.getSize / nodeSizeInBytes
     var m = -1
@@ -117,7 +117,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
     nItems = m
 
     if (useHeap) {
-      val nodesOnHeap = new HeapNodeContainer[AngularNodeOperations](dim, nNodes)
+      val nodesOnHeap = new HeapNodeContainer[AngularNodeIO](dim, nNodes)
       nodesOnFile.underlying.rewind()
       nodesOnHeap.underlying.put(nodesOnFile.underlying)
       nodes = nodesOnHeap
@@ -225,7 +225,7 @@ class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
 
   private def ensureSize(n: Int): Unit = {
     if (nodes == null)
-      nodes = new HeapNodeContainer[AngularNodeOperations](dim, 0)
+      nodes = new HeapNodeContainer[AngularNodeIO](dim, 0)
     nodes.ensureSize(n, verbose0)
   }
 

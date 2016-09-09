@@ -4,7 +4,7 @@ import java.io.RandomAccessFile
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 
-class MappedNodeContainer[T <: NodeOperations](dim: Int, filename: String) extends NodeContainer {
+class MappedNodeContainer[T <: NodeIO](dim: Int, filename: String) extends NodeContainer {
 
   val memoryMappedFile = new RandomAccessFile(filename, "r")
   val fileSize = memoryMappedFile.length()
@@ -14,7 +14,7 @@ class MappedNodeContainer[T <: NodeOperations](dim: Int, filename: String) exten
 
   val (nodeSizeInBytes, childrenCapacity, ops) =  {
     //    case cls if classOf[AngularNode].isAssignableFrom(cls) =>
-    (AngularNodeOperations.nodeSizeInBytes(dim), AngularNodeOperations.childrenCapacity(dim), AngularNodeOperations)
+    (AngularNodeIO.nodeSizeInBytes(dim), AngularNodeIO.childrenCapacity(dim), AngularNodeIO)
   }
 
   override val bufferType = underlying.getClass.getSimpleName
