@@ -1,7 +1,7 @@
 # annoy4s
 A Scala Implementation of [Annoy](https://github.com/spotify/annoy).
 
-This can solve nearest neighbors (ann or knn) problems on [Apache Spark](https://spark.apache.org/) and [Apache S2Graph (incubating)](http://s2graph.incubator.apache.org/)
+This can solve nearest neighbors (ann or knn) problems on [Apache Spark](https://spark.apache.org/) and [Apache S2Graph (incubating)](http://s2graph.incubator.apache.org/).
   
 > Annoy (Approximate Nearest Neighbors Oh Yeah) is a C++ library with Python bindings to search for points in space that are close to a given query point. It also creates large read-only file-based data structures that are mmapped into memory so that many processes may share the same data.
 
