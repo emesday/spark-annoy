@@ -30,14 +30,9 @@ object AnnoyTest {
 
 ```
 
-# Install
-
-Just add AnnoyIndex.scala file to your project. (at this time ...)
-
-# Annoy on Spark
+# Spark code example
 
 ## Item similarity computation
-
 ```scala
 object AnnoyLoader {
   // singleton on every executors
@@ -85,17 +80,20 @@ dataset.sqlContext.sparkContext.addFile(annoyIndexFilename)
 val itemSimilarity: RDD[(Int, Array[(Int, Float)])] = 
   itemFactors.keys.map(x => (x, AnnoyLoader.getAnnoy(rank, annoyIndexFilename).getNnsByItem(x, 10)))
 ```      
+ - for more information of ALS see this (link)[http://spark.apache.org/docs/2.0.0/ml-collaborative-filtering.html]
 
-coming soon...
+
+# Install
+
+Just add AnnoyIndex.scala file to your project. (at this time ...)
 
 # TODO
   - Angular: Done
   - save: Done
   - load/unload: Done
-  - optimization: WIP
-  - Spark Examples: TBD
+  - optimization: Done
+  - Spark code example: Done
   - Euclidean: TBD
-  - All features in Annoy: TBD
 
 # References
  - https://github.com/spotify/annoy : native implementation with serveral bindings like Python
