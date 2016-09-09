@@ -6,25 +6,26 @@ A Scala Implementation of [Annoy](https://github.com/spotify/annoy).
 # Scala code example
 
 ```scala
-import annoy4s.AnnoyIndex
+import annoy4s._
 
-object AnnoyTest {
+object AnnoyExample {
 
   def main(args: Array[String]) {
     val f = 40
-    val t = new AnnoyIndex(f)  // Length of item vector that will be indexed
+    val metric: Metric = Angular // or Euclidean
+    val t = new AnnoyIndex(f, metric)  // Length of item vector that will be indexed
     (0 until 1000) foreach { i =>
       val v = Array.fill(f)(scala.util.Random.nextGaussian().toFloat)
       t.addItem(i, v)
     }
     t.build(10)
-    
+
     // t.getNnsByItem(0, 1000) runs using HeapByteBuffer (memory)
-    
-    t.save("test.ann") // test.ann is compatible with the native Annoy
-    
+
+    t.save("test.ann") // `test.ann` is compatible with the native Annoy
+
     // after `save` t.getNnsByItem(0, 1000) runs using MappedFile (file-based)
-    
+
     println(t.getNnsByItem(0, 1000).mkString(",")) // will find the 1000 nearest neighbors
   }
 
@@ -90,16 +91,8 @@ val itemSimilarity: RDD[(Int, Array[(Int, Float)])] =
 ```
 resolvers += Resolver.bintrayRepo("mskimm", "maven")
 
-libraryDependencies += "com.github.mskimm" %% "annoy4s" % "0.0.1"
+libraryDependencies += "com.github.mskimm" %% "annoy4s" % "0.0.2"
 ```
-
-# TODO
-  - Angular: Done
-  - save: Done
-  - load/unload: Done
-  - optimization: Done
-  - Spark code example: Done
-  - Euclidean: TBD
 
 # References
  - https://github.com/spotify/annoy : native implementation with serveral bindings like Python
