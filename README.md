@@ -81,7 +81,7 @@ dataset.sqlContext.sparkContext.addFile(annoyIndexFilename)
 val itemSimilarity: RDD[(Int, Array[(Int, Float)])] = 
   itemFactors.keys.map(x => (x, AnnoyLoader.getAnnoy(rank, annoyIndexFilename).getNnsByItem(x, 10)))
 ```      
- - for more information of ALS see this (link)[http://spark.apache.org/docs/2.0.0/ml-collaborative-filtering.html]
+ - for more information of ALS see this [link](http://spark.apache.org/docs/2.0.0/ml-collaborative-filtering.html)
 
 
 # Install
