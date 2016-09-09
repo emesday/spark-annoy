@@ -3,12 +3,12 @@ package annoy4s
 import java.io.{FileOutputStream, RandomAccessFile}
 import java.nio.channels.FileChannel
 import java.nio.{ByteBuffer, ByteOrder}
+import java.util
 
 import annoy4s.Functions._
 
 import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.util.{Random => RND}
+import scala.collection.mutable.ArrayBuffer
 
 trait NodeOperations {
 
@@ -45,7 +45,7 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
   def getAllChildren(dst: Array[Int]): Array[Int] =
     ops.getAllChildren(underlying, offsetInBytes, dst)
 
-  def getV(dst: Array[Float]): Array[Float] =
+  def getVector(dst: Array[Float]): Array[Float] =
     ops.getV(underlying, offsetInBytes, dst)
 
   def setValue(v: Float): Unit = {
@@ -79,15 +79,16 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
   }
 }
 
-abstract class bufferType {
+abstract class NodeContainer {
   val bufferType: String
-  def ensureSize(n: Int, _verbose: Boolean): Int
+  def ensureSize(n: Int, verbose: Boolean): Int
   def apply(i: Int): Node
-  def alloc: Node
+  def newNode: Node
   def getSize: Int
+  def flip(): Unit
 }
 
-class MappedNodes[T <: NodeOperations](dim: Int, filename: String) extends bufferType {
+class MappedNodeContainer[T <: NodeOperations](dim: Int, filename: String) extends NodeContainer {
 
   val memoryMappedFile = new RandomAccessFile(filename, "r")
   val fileSize = memoryMappedFile.length()
@@ -104,16 +105,20 @@ class MappedNodes[T <: NodeOperations](dim: Int, filename: String) extends buffe
 
   override def getSize: Int = fileSize.toInt
 
-  override def ensureSize(n: Int, _verbose: Boolean): Int = ???
+  override def ensureSize(n: Int, verbose: Boolean): Int = throw new IllegalAccessError("readonly")
 
-  override def alloc: Node = ???
+  override def newNode: Node = throw new IllegalAccessError("readonly")
 
   override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, ops, true)
 
-  def close() = ???
+  override def flip(): Unit = throw new IllegalAccessError("readonly")
+
+  def close() = {
+    memoryMappedFile.close()
+  }
 }
 
-class HeapNodes[T <: NodeOperations](dim: Int, _size: Int) extends bufferType {
+class HeapNodeContainer[T <: NodeOperations](dim: Int, _size: Int) extends NodeContainer {
 
   val reallocation_factor = 1.3
 
@@ -129,10 +134,10 @@ class HeapNodes[T <: NodeOperations](dim: Int, _size: Int) extends bufferType {
 
   override def getSize: Int = size
 
-  override def ensureSize(n: Int, _verbose: Boolean): Int = {
+  override def ensureSize(n: Int, verbose: Boolean): Int = {
     if (n > size) {
       val newsize = math.max(n, (size + 1) * reallocation_factor).toInt
-      if (_verbose) showUpdate("Reallocating to %d nodes\n", newsize)
+      if (verbose) showUpdate("Reallocating to %d nodes\n", newsize)
       val newBuffer: ByteBuffer = ByteBuffer.allocateDirect(nodeSizeInBytes * newsize).order(ByteOrder.LITTLE_ENDIAN)
 
       underlying.rewind()
@@ -147,7 +152,9 @@ class HeapNodes[T <: NodeOperations](dim: Int, _size: Int) extends bufferType {
 
   override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, ops, readonly)
 
-  override def alloc: Node = Node(dim, nodeSizeInBytes, ByteBuffer.allocate(nodeSizeInBytes).order(ByteOrder.LITTLE_ENDIAN), 0, ops, readonly)
+  override def newNode: Node = Node(dim, nodeSizeInBytes, ByteBuffer.allocate(nodeSizeInBytes).order(ByteOrder.LITTLE_ENDIAN), 0, ops, readonly)
+
+  override def flip(): Unit = underlying.flip()
 
   def prepareToWrite(): Unit = {
     readonly = true
@@ -163,8 +170,8 @@ class HeapNodes[T <: NodeOperations](dim: Int, _size: Int) extends bufferType {
   */
 trait AngularNodeOperations extends NodeOperations {
 
-  def nodeSizeInBytes(f: Int): Int = 12 + f * 4
-  def childrenCapacity(f: Int): Int = 2 + f
+  def nodeSizeInBytes(dim: Int): Int = 12 + dim * 4
+  def childrenCapacity(dim: Int): Int = 2 + dim
 
   override def getNDescendants(underlying: ByteBuffer, offsetInBytes: Int): Int = {
     underlying.position(offsetInBytes)
@@ -211,11 +218,11 @@ trait AngularNodeOperations extends NodeOperations {
   }
 
   override def setValue(underlying: ByteBuffer, offsetInBytes: Int, v: Float, dim: Float): Unit = {
-    ???
     underlying.position(offsetInBytes + 12)
+    val floatBuffer = underlying.asFloatBuffer()
     var i = 0
     while (i < dim) {
-      underlying.asFloatBuffer().put(i, v)
+      floatBuffer.put(i, v)
       i += 1
     }
   }
@@ -250,7 +257,7 @@ trait Random {
 }
 
 object RandRandom extends Random {
-  val rnd = new RND(0)
+  val rnd = new scala.util.Random
   override def flip(): Boolean = rnd.nextBoolean()
   override def index(n: Int): Int = rnd.nextInt(n)
 }
@@ -274,13 +281,13 @@ trait BLASInterface {
 
 object SimpleBLAS extends BLASInterface {
   override def nrm2(x: Array[Float]): Float = {
-    var sq_norm: Double = 0
+    var sqNorm: Double = 0
     var z = 0
     while (z < x.length) {
-      sq_norm += x(z) * x(z)
+      sqNorm += x(z) * x(z)
       z += 1
     }
-    math.sqrt(sq_norm).toFloat
+    math.sqrt(sqNorm).toFloat
   }
 
   override def scal(sa: Float, sx: Array[Float]): Unit = {
@@ -307,6 +314,7 @@ object Functions {
   val Zero = 0f
   val One = 1f
   val blas = SimpleBLAS
+  val iterationSteps = 200
 
   def showUpdate(text: String, xs: Any*): Unit = Console.err.print(text.format(xs: _*))
 
@@ -315,15 +323,14 @@ object Functions {
   def normalize(v: Array[Float]): Unit = blas.scal(One / getNorm(v), v)
 
   def twoMeans(nodes: ArrayBuffer[Node], cosine: Boolean, iv: Array[Float], jv: Array[Float], metric: Distance, rand: Random): Unit = {
-    val iterationSteps = 200
     val count = nodes.length
-    val f = iv.length
+    val dim = iv.length
 
     val i = rand.index(count)
     var j = rand.index(count - 1)
     j += (if (j >= i) 1 else 0)
-    nodes(i).getV(iv)
-    nodes(j).getV(jv)
+    nodes(i).getVector(iv)
+    nodes(j).getVector(jv)
 
     if (cosine) {
       normalize(iv)
@@ -334,23 +341,23 @@ object Functions {
     var jc = 1
     var l = 0
     var z = 0
-    val vi = new Array[Float](f)
+    val v = new Array[Float](dim)
     while (l < iterationSteps) {
       val k = rand.index(count)
-      val zz = nodes(k).getV(vi)
+      val zz = nodes(k).getVector(v)
       val di = ic * metric.distance(iv, zz)
       val dj = jc * metric.distance(jv, zz)
       val norm = if (cosine) getNorm(zz) else One
       if (di < dj) {
         z = 0
-        while (z < f) {
+        while (z < dim) {
           iv(z) = (iv(z) * ic + zz(z) / norm) / (ic + 1)
           z += 1
         }
         ic += 1
       } else if (dj < di) {
         z = 0
-        while (z < f) {
+        while (z < dim) {
           jv(z) = (jv(z) * jc + zz(z) / norm) / (jc + 1)
           z += 1
         }
@@ -383,7 +390,7 @@ object Angular extends Distance {
     if (ppqq > 0) (2.0 - 2.0 * pq / Math.sqrt(ppqq)).toFloat else 2.0f
   }
 
-  override def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float = blas.dot(n.getV(buffer), y)
+  override def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float = blas.dot(n.getVector(buffer), y)
 
   override def side(n: Node, y: Array[Float], random: Random, buffer: Array[Float]): Boolean = {
     val dot = margin(n, y, buffer)
@@ -394,19 +401,19 @@ object Angular extends Distance {
     }
   }
 
-  override def createSplit(nodes: ArrayBuffer[Node], f: Int, rand: Random, n: Node): Unit = {
-    val buffer = new Array[Float](f)
-    val bestIv = new Array[Float](f)
-    val bestJv = new Array[Float](f)
+  override def createSplit(nodes: ArrayBuffer[Node], dim: Int, rand: Random, n: Node): Unit = {
+    val bestIv = new Array[Float](dim)
+    val bestJv = new Array[Float](dim)
     twoMeans(nodes, true, bestIv, bestJv, this, rand)
+
+    val vectorBuffer = n.getVector(new Array[Float](dim))
     var z = 0
-    n.getV(buffer)
-    while (z < f) {
-      buffer(z) = bestIv(z) - bestJv(z)
+    while (z < dim) {
+      vectorBuffer(z) = bestIv(z) - bestJv(z)
       z += 1
     }
-    normalize(buffer)
-    n.setV(buffer)
+    normalize(vectorBuffer)
+    n.setV(vectorBuffer)
   }
 
   override def normalizeDistance(distance: Float): Float = {
@@ -414,7 +421,7 @@ object Angular extends Distance {
   }
 }
 
-class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
+class AnnoyIndex(dim: Int, distance: Distance, random: Random) {
 
   def this(f: Int, random: Random) = this(f, Angular, random)
 
@@ -422,109 +429,94 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
 
   def this(f: Int) = this(f, Angular, RandRandom)
 
-  val _s: Int = AngularNodeOperations.nodeSizeInBytes(f)
-  val _K: Int = AngularNodeOperations.childrenCapacity(f)
-  var _verbose: Boolean = false
-  var _nodes: bufferType = null
-  val _roots = new ArrayBuffer[Int]()
-  var _loaded: Boolean = false
-  var _n_items: Int = 0
-  var _n_nodes: Int = 0
+  private val nodeSizeInBytes: Int = AngularNodeOperations.nodeSizeInBytes(dim)
+  private val childrenCapacity: Int = AngularNodeOperations.childrenCapacity(dim)
+  private var verbose0: Boolean = false
+  private var nodes: NodeContainer = null
+  private val roots = new ArrayBuffer[Int]()
+  private var loaded: Boolean = false
+  private var nItems: Int = 0
+  private var nNodes: Int = 0
 
   reinitialize()
 
-  def mode: String = _nodes.bufferType
+  def getBufferType: String = nodes.bufferType
 
-  def get_f(): Int = f
-
-  def _get(item: Int): Node = _nodes(item)
-
-  def _getOrNull(item: Int): Node = {
-    val n = _nodes(item)
-    if (n.getNDescendants == 0) null else n
-  }
+  def getDim: Int = dim
 
   def addItem(item: Int, w: Array[Float]): Unit = {
-    _alloc_size(item + 1)
-    val n = _get(item)
+    ensureSize(item + 1)
+    val n = getNode(item)
 
     n.setChildren(0, 0)
     n.setChildren(1, 0)
     n.setNDescendants(1)
     n.setV(w)
 
-    if (item >= _n_items)
-      _n_items = item + 1
+    if (item >= nItems)
+      nItems = item + 1
   }
 
   def build(q: Int): Unit = {
-    require(!_loaded, "You can't build a loaded index")
+    require(!loaded, "You can't build a loaded index")
 
-    _n_nodes = _n_items
-    while ((q != -1 || _n_nodes < _n_items * 2) && (q == -1 || _roots.length < q)) {
-      if (_verbose) showUpdate("pass %d...\n", _roots.length)
-      val indices = new ArrayBuffer(_n_items) ++= (0 until _n_items)
-      val x = _make_tree(indices)
-      _roots += x
+    nNodes = nItems
+    while ((q != -1 || nNodes < nItems * 2) && (q == -1 || roots.length < q)) {
+      if (verbose0) showUpdate("pass %d...\n", roots.length)
+      val indices = new ArrayBuffer(nItems) ++= (0 until nItems)
+      val x = makeTree(indices)
+      roots += x
     }
 
     // Also, copy the roots into the last segment of the array
     // This way we can load them faster without reading the whole file
-    _alloc_size(_n_nodes + _roots.length)
-    _roots.zipWithIndex.foreach { case (root, i) =>
-      _get(_n_nodes + i).copyFrom(_get(root))
+    ensureSize(nNodes + roots.length)
+    roots.zipWithIndex.foreach { case (root, i) =>
+      getNode(nNodes + i).copyFrom(getNode(root))
     }
-    _nodes.asInstanceOf[HeapNodes[_]].underlying.flip()
-    _nodes.asInstanceOf[HeapNodes[_]].prepareToWrite()
-    _n_nodes += _roots.length
+    nNodes += roots.length
+    nodes.flip()
 
-    if (_verbose) showUpdate("has %d nodes\n", _n_nodes)
+    if (verbose0) showUpdate("has %d nodes\n", nNodes)
   }
 
-  def save(filename: String): Boolean = {
-    _nodes match {
-      case nodes: HeapNodes[_] =>
-        nodes.prepareToWrite()
+  def save(filename: String, reload: Boolean = true): Boolean = {
+    nodes match {
+      case heapNodes: HeapNodeContainer[_] =>
+        heapNodes.prepareToWrite()
         val fs = new FileOutputStream(filename).getChannel
-        fs.write(nodes.underlying)
+        fs.write(heapNodes.underlying)
         fs.close()
-        unload()
-        load(filename)
       case _ =>
-        false
     }
-  }
-
-  def reinitialize(): Unit = {
-    _nodes = null
-    _loaded = false
-    _n_items = 0
-    _n_nodes = 0
-    _roots.clear()
+    if (reload) {
+      unload()
+      load(filename)
+    } else {
+      true
+    }
   }
 
   def unload(): Unit = {
-    _nodes match {
-      case mappedNodes: MappedNodes[_] =>
+    nodes match {
+      case mappedNodes: MappedNodeContainer[_] =>
         mappedNodes.close()
-        _nodes = null
-      case heapNodes: HeapNodes[_] =>
-        _nodes = null
+      case _ =>
     }
     reinitialize()
-    if (_verbose) showUpdate("unloaded\n")
+    if (verbose0) showUpdate("unloaded\n")
   }
 
-  def load(filename: String): Boolean = {
-    _nodes = new MappedNodes[AngularNodeOperations](f, filename)
-    _n_nodes = _nodes.getSize / _s
-
+  def load(filename: String, useHeap: Boolean = false): Boolean = {
+    val nodesOnFile = new MappedNodeContainer[AngularNodeOperations](dim, filename)
+    nodes = nodesOnFile
+    nNodes = nodes.getSize / nodeSizeInBytes
     var m = -1
-    var i = _n_nodes - 1
+    var i = nNodes - 1
     while (i >= 0) {
-      val k = _get(i).getNDescendants
+      val k = getNode(i).getNDescendants
       if (m == -1 || k == m) {
-        _roots += i
+        roots += i
         m = k
       } else {
         i = 0 // break
@@ -532,33 +524,134 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
       i -= 1
     }
 
-    if (_roots.length > 1 && _get(_roots.head).getChildren(0) == _get(_roots.last).getChildren(0)) {
-      _roots -= _roots.last // pop_back
+    if (roots.length > 1 && getNode(roots.head).getChildren(0) == getNode(roots.last).getChildren(0)) {
+      roots -= roots.last // pop_back
     }
-    _loaded = true
-    _n_items = m
+    loaded = true
+    nItems = m
 
-    if (_verbose) showUpdate("found %d roots with degree %d\n", _roots.length, m)
+    if (useHeap) {
+      val nodesOnHeap = new HeapNodeContainer[AngularNodeOperations](dim, nNodes)
+      nodesOnFile.underlying.rewind()
+      nodesOnHeap.underlying.put(nodesOnFile.underlying)
+      nodes = nodesOnHeap
+      nodesOnFile.close()
+    }
+
+    if (verbose0) showUpdate("found %d roots with degree %d\n", roots.length, m)
     true
   }
 
-  def verbose(v: Boolean): Unit = this._verbose = v
+  def verbose(v: Boolean): Unit = this.verbose0 = v
 
-  private def _alloc_size(n: Int): Unit = {
-    if (_nodes == null)
-      _nodes = new HeapNodes[AngularNodeOperations](f, 0)
-    _nodes.ensureSize(n, _verbose)
+  def getNItems: Int = nItems
+
+  def getItem(item: Int): Array[Float] = getNode(item).getVector(new Array[Float](dim))
+
+  def getNnsByItem(item: Int, n: Int): Array[(Int, Float)] = getNnsByItem(item, n, -1)
+
+  def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = {
+    val v = getNode(item).getVector(new Array[Float](dim))
+    getAllNns(v, n, k)
   }
 
-  def _make_tree(indices: ArrayBuffer[Int]): Int = {
+  def getNnsByVector(w: Array[Float], n: Int): Array[(Int, Float)] = getNnsByVector(w, n, -1)
+
+  def getNnsByVector(w: Array[Float], n: Int, k: Int): Array[(Int, Float)] = getAllNns(w, n, k)
+
+  private def getAllNns(v: Array[Float], n: Int, k: Int): Array[(Int, Float)] = {
+    val vectorBuffer = new Array[Float](dim)
+    val searchK = if (k == -1) n * roots.length else k
+
+    val q = new mutable.PriorityQueue[(Float, Int)] ++= roots.map(Float.PositiveInfinity -> _)
+
+    val nns = new ArrayBuffer[Int](searchK)
+    val childrenBuffer = new Array[Int](childrenCapacity)
+    while (nns.length < searchK && q.nonEmpty) {
+      val top = q.dequeue()
+      val d = top._1
+      val i = top._2
+      val nd = getNode(i)
+      val nDescendants = nd.getNDescendants
+      if (nDescendants == 1 && i < nItems) {
+        nns += i
+      } else if (nDescendants <= childrenCapacity) {
+        nd.getAllChildren(childrenBuffer)
+        var jj = 0
+        while (jj < nDescendants) {
+          nns += childrenBuffer(jj)
+          jj += 1
+        }
+      } else {
+        val margin = distance.margin(nd, v, vectorBuffer)
+        q += math.min(d, +margin) -> nd.getChildren(1)
+        q += math.min(d, -margin) -> nd.getChildren(0)
+      }
+    }
+
+    // Get distances for all items
+    // To avoid calculating distance multiple times for any items, sort by id
+    val sortedNns = nns.toArray
+    java.util.Arrays.sort(sortedNns)
+    val nnsDist = new ArrayBuffer[(Float, Int)](sortedNns.length)
+    var last = -1
+    var i = 0
+    while (i < sortedNns.length) {
+      val j = sortedNns(i)
+      if (j != last) {
+        last = j
+        nnsDist += distance.distance(v, getNode(j).getVector(vectorBuffer)) -> j
+      }
+      i += 1
+    }
+
+    val m = nnsDist.length
+    val p = math.min(n, m)
+
+    val partialSorted = new TopK[(Float, Int)](p, reversed = true)
+    nnsDist.foreach(partialSorted += _)
+
+    partialSorted
+      .map { case (dist, item) =>
+        (item, distance.normalizeDistance(dist))
+      }
+      .toArray
+  }
+
+  def getDistance(i: Int, j: Int): Float = {
+    distance.distance(nodes(i).getVector(new Array[Float](dim)), nodes(j).getVector(new Array[Float](dim)))
+  }
+
+  private def getNode(item: Int): Node = nodes(item)
+
+  private def getNodeOrNull(item: Int): Node = {
+    val n = nodes(item)
+    if (n.getNDescendants == 0) null else n
+  }
+
+  private def reinitialize(): Unit = {
+    nodes = null
+    loaded = false
+    nItems = 0
+    nNodes = 0
+    roots.clear()
+  }
+
+  private def ensureSize(n: Int): Unit = {
+    if (nodes == null)
+      nodes = new HeapNodeContainer[AngularNodeOperations](dim, 0)
+    nodes.ensureSize(n, verbose0)
+  }
+
+  private def makeTree(indices: ArrayBuffer[Int]): Int = {
     if (indices.length == 1)
       return indices(0)
 
-    if (indices.length <= _K) {
-      _alloc_size(_n_nodes + 1)
-      val item = _n_nodes
-      _n_nodes += 1
-      val m = _get(item)
+    if (indices.length <= childrenCapacity) {
+      ensureSize(nNodes + 1)
+      val item = nNodes
+      nNodes += 1
+      val m = getNode(item)
       m.setNDescendants(indices.length)
       m.setAllChildren(indices.toArray)
       return item
@@ -568,7 +661,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
     var i = 0
     while (i < indices.length) {
       val j = indices(i)
-      val n = _getOrNull(j)
+      val n = getNodeOrNull(j)
       if (n != null)
         children += n
       i += 1
@@ -578,20 +671,17 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
       new ArrayBuffer[Int]
     }
 
-    val m = _nodes.alloc
+    val m = nodes.newNode
+    distance.createSplit(children, dim, random, m)
 
-    distance.createSplit(children, f, _random, m)
-
+    val vectorBuffer = new Array[Float](dim)
+    val sideBuffer = new Array[Float](dim)
     i = 0
-
-    val v0 = new Array[Float](f)
-    val v1 = new Array[Float](f)
-
     while (i < indices.length) {
       val j = indices(i)
-      val n = _getOrNull(j)
+      val n = getNodeOrNull(j)
       if (n != null) {
-        val side = if (distance.side(m, n.getV(v0), _random, v1)) 1 else 0
+        val side = if (distance.side(m, n.getVector(vectorBuffer), random, sideBuffer)) 1 else 0
         childrenIndices(side) += j
       }
       i += 1
@@ -599,8 +689,8 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
 
     // If we didn't find a hyperplane, just randomize sides as a last option
     while (childrenIndices(0).isEmpty || childrenIndices(1).isEmpty) {
-      if (_verbose && indices.length > 100000)
-        showUpdate("Failed splitting %lu items\n", indices.length)
+      if (verbose0 && indices.length > 100000)
+        showUpdate("Failed splitting %d items\n", indices.length)
 
       childrenIndices(0).clear()
       childrenIndices(1).clear()
@@ -612,7 +702,7 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
       while (i < indices.length) {
         val j = indices(i)
         // Just randomize...
-        childrenIndices(if (_random.flip()) 1 else 0) += j
+        childrenIndices(if (random.flip()) 1 else 0) += j
         i += 1
       }
     }
@@ -622,102 +712,37 @@ class AnnoyIndex(f: Int, distance: Distance, _random: Random) {
     m.setNDescendants(indices.length)
     var side = 0
     while (side < 2) {
-      m.setChildren(side ^ flip, _make_tree(childrenIndices(side ^ flip)))
+      m.setChildren(side ^ flip, makeTree(childrenIndices(side ^ flip)))
       side += 1
     }
-    _alloc_size(_n_nodes + 1)
-    val item = _n_nodes
-    _n_nodes += 1
-    _get(item).copyFrom(m)
-
+    ensureSize(nNodes + 1)
+    val item = nNodes
+    nNodes += 1
+    getNode(item).copyFrom(m)
     item
   }
-
-  def getNItems: Int = _n_items
-
-  def getItem(item: Int): Array[Float] = _get(item).getV(new Array[Float](f))
-
-  val getNnsByItemV = new Array[Float](f)
-
-  def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = {
-    _get(item).getV(getNnsByItemV)
-    _get_all_nns(getNnsByItemV, n, k)
-  }
-
-  def getNnsByItem(item: Int, n: Int): Array[(Int, Float)] = getNnsByItem(item, n, -1)
-
-  def getNnsByVector(w: Array[Float], n: Int, k: Int): Array[(Int, Float)] = {
-    _get_all_nns(w, n, k)
-  }
-
-  def getNnsByVector(w: Array[Float], n: Int): Array[(Int, Float)] = getNnsByVector(w, n, -1)
-
-  val getAllNnsV = new Array[Float](f)
-  val getAllNnsI = new Array[Int](_K)
-
-  def _get_all_nns(v: Array[Float], n: Int, k: Int): Array[(Int, Float)] = {
-    val v0 = getAllNnsV
-    // implicit val ord = Ordering.by[(Float, Int), Float](x => x._1)
-    val q = new mutable.PriorityQueue[(Float, Int)]
-    val search_k = if (k == -1) n * _roots.length else k
-
-    _roots.foreach { root =>
-      q += Float.PositiveInfinity -> root
-    }
-
-    var nns = new ListBuffer[Int]()
-    val buffer = getAllNnsI
-    while (nns.length < search_k && q.nonEmpty) {
-      val top = q.head
-      val d = top._1
-      val i = top._2
-      val nd = _get(i)
-      q.dequeue()
-      val nDescendants = nd.getNDescendants
-      if (nDescendants == 1 && i < _n_items) {
-        nns += i
-      } else if (nDescendants <= _K) {
-        nd.getAllChildren(buffer)
-        var jj = 0
-        while (jj < nDescendants) {
-          nns += buffer(jj)
-          jj += 1
-        }
-      } else {
-        val margin = distance.margin(nd, v, v0)
-        q += math.min(d, +margin) -> nd.getChildren(1)
-        q += math.min(d, -margin) -> nd.getChildren(0)
-      }
-    }
-
-    // Get distances for all items
-    // To avoid calculating distance multiple times for any items, sort by id
-    val sortedNns = nns.sortWith(_ > _)
-    val nns_dist = new ArrayBuffer[(Float, Int)]()
-    var last = -1
-    var i = 0
-    while (i < sortedNns.length) {
-      val j = sortedNns(i)
-      if (j != last) {
-        last = j
-        nns_dist += distance.distance(v, _get(j).getV(v0)) -> j
-      }
-      i += 1
-    }
-
-    val m = nns_dist.length
-    val p = math.min(n, m)
-
-    nns_dist.sortBy(_._1).take(p)
-      .map { case (dist, item) =>
-        (item, distance.normalizeDistance(dist))
-      }
-      .toArray
-  }
-
-  val x0: Array[Float] = new Array[Float](f)
-  val x1: Array[Float] = new Array[Float](f)
-
-  def getDistance(i: Int, j: Int): Float = distance.distance(_nodes(i).getV(x0), _nodes(j).getV(x1))
 }
 
+// code from https://github.com/scalanlp/breeze/blob/42c2e2522cf09259a34879e1c3b13b81176e410f/math/src/main/scala/breeze/util/TopK.scala
+class TopK[T](k : Int, reversed: Boolean = false)(implicit ord : Ordering[T]) extends Iterable[T] {
+  import scala.collection.JavaConversions._
+
+  val _ord = if (reversed) ord.reverse else ord
+
+  private val keys = new util.TreeSet[T](_ord)
+
+  def +=(e : T) = {
+    if (keys.size < k) {
+      keys.add(e)
+    } else if (keys.size > 0 && _ord.lt(keys.first, e) && !keys.contains(e)) {
+      keys.remove(keys.first)
+      keys.add(e)
+    }
+  }
+
+  override def iterator : Iterator[T] =
+    keys.descendingIterator
+
+  override def size = keys.size
+
+}
