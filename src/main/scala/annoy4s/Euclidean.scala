@@ -21,7 +21,8 @@ object Euclidean extends Metric with EuclideanNodeIO {
     d
   }
 
-  override def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float = blas.dot(n.getVector(buffer), y)
+  override def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float =
+    blas.dot(n.getVector(buffer), y) + n.getA
 
   override def side(n: Node, y: Array[Float], random: Random, buffer: Array[Float]): Boolean = {
     val dot = margin(n, y, buffer)

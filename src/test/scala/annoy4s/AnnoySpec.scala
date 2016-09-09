@@ -75,7 +75,7 @@ class AnnoySpec extends FlatSpec with Matchers {
     }
   }
 
-  it should "building index" in {
+  it should "building index for Py" in {
     val f = dataset.head.length
     val angular = new AnnoyIndex(f, Angular)
     val euclidean = new AnnoyIndex(f, Euclidean)
@@ -106,6 +106,7 @@ class AnnoySpec extends FlatSpec with Matchers {
 
   it should "Py Angular" in {
     val pyIndex = new AnnoyIndex(10, Angular)
+    pyIndex.verbose(true)
     pyIndex.load(getClass.getResource("/annoy-index-angular-py").getPath)
     (0 until pyIndex.getNItems).foreach { item =>
       pyIndex.getNnsByItem(item, 10).map(_._1) shouldBe PyAngularResult.result(item)
@@ -114,6 +115,7 @@ class AnnoySpec extends FlatSpec with Matchers {
 
   it should "Py Euclidean" in {
     val pyIndex = new AnnoyIndex(10, Euclidean)
+    pyIndex.verbose(true)
     pyIndex.load(getClass.getResource("/annoy-index-euclidean-py").getPath)
     (0 until pyIndex.getNItems).foreach { item =>
       pyIndex.getNnsByItem(item, 10).map(_._1) shouldBe PyEuclideanResult.result(item)

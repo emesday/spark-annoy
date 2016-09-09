@@ -17,7 +17,15 @@ trait EuclideanNodeIO extends NodeIO {
   override val offsetChildren: Int = 8
   override val offsetValue: Int = 16
 
-  override def setA(underlying: ByteBuffer, offsetInBytes: Int, a: Float): Unit = {
+  val offsetA = 4
 
+  override def getA(underlying: ByteBuffer, offsetInBytes: Int): Float = {
+    underlying.position(offsetInBytes + offsetA)
+    underlying.getFloat()
+  }
+
+  override def setA(underlying: ByteBuffer, offsetInBytes: Int, a: Float): Unit = {
+    underlying.position(offsetInBytes + offsetA)
+    underlying.putFloat(a)
   }
 }

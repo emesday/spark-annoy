@@ -16,6 +16,10 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
   def getVector(dst: Array[Float]): Array[Float] =
     io.getV(underlying, offsetInBytes, dst)
 
+  def getA: Float = {
+    io.getA(underlying, offsetInBytes)
+  }
+
   def setValue(v: Float): Unit = {
     require(!readonly)
     io.setValue(underlying, offsetInBytes, v, dim)

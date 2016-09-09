@@ -95,6 +95,8 @@ trait NodeIO {
     dst.put(dup)
   }
 
+  def getA(underlying: ByteBuffer, offsetInBytes: Int): Float
+
   def setA(underlying: ByteBuffer, offsetInBytes: Int, a: Float): Unit
 
 }

@@ -22,8 +22,14 @@ trait AngularNodeIO extends NodeIO {
 
   override val offsetValue: Int = 12
 
+  override def getA(underlying: ByteBuffer, offsetInBytes: Int): Float =
+    throw new IllegalAccessError()
+
   override def setA(underlying: ByteBuffer, offsetInBytes: Int, a: Float): Unit =
     throw new IllegalAccessError()
+
+
+
 
 }
 
