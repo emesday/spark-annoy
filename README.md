@@ -1,5 +1,6 @@
 # annoy4s
 A Scala Implementation of [Annoy](https://github.com/spotify/annoy)
+  for [Apache Spark](https://spark.apache.org/) and [Apache S2Graph (incubating)](http://s2graph.incubator.apache.org/)
 
 # Scala code example
 
