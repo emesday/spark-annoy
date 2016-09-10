@@ -14,7 +14,9 @@ class MappedNodeStorage(dim: Int, filename: String, io: NodeSerde) extends NodeS
 
   override val bufferType = underlying.getClass.getSimpleName
 
-  override def numNodes: Int = fileSize.toInt / nodeSizeInBytes
+  override def getSize: Int = fileSize
+
+  override def numNodes: Int = fileSize / nodeSizeInBytes
 
   override def ensureSize(n: Int, verbose: Boolean): Int = throw new IllegalAccessError("readonly")
 

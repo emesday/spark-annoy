@@ -2,7 +2,7 @@ package annoy4s
 
 import scala.collection.mutable.ArrayBuffer
 
-object Angular extends Metric with AngularNodeIO {
+object Angular extends Metric with AngularSerde {
 
   import Functions._
 

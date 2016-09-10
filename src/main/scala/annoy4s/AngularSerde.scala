@@ -2,15 +2,13 @@ package annoy4s
 
 import java.nio.ByteBuffer
 
-object AngularNodeIO extends AngularNodeIO
-
 /**
   * n_descendants: Int = 4
   * n_children[0]: Int = 4
   * n_children[1]: Int = 4
   * v: Array[Float] = f * 4
   */
-trait AngularNodeIO extends NodeSerde {
+trait AngularSerde extends NodeSerde {
 
   override def nodeSizeInBytes(dim: Int): Int = 12 + dim * 4
 
