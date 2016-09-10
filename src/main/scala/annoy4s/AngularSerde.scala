@@ -10,7 +10,7 @@ object AngularNodeIO extends AngularNodeIO
   * n_children[1]: Int = 4
   * v: Array[Float] = f * 4
   */
-trait AngularNodeIO extends NodeIO {
+trait AngularNodeIO extends NodeSerde {
 
   override def nodeSizeInBytes(dim: Int): Int = 12 + dim * 4
 

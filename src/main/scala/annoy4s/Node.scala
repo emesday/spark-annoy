@@ -2,7 +2,7 @@ package annoy4s
 
 import java.nio.ByteBuffer
 
-case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, io: NodeIO, readonly: Boolean) {
+case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, io: NodeSerde, readonly: Boolean) {
 
   def getNDescendants: Int =
     io.getNDescendants(underlying, offsetInBytes)

@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 
 import scala.collection.mutable.ArrayBuffer
 
-trait Metric extends Distance with NodeIO
+trait Metric extends Distance with NodeSerde
 
 trait Distance {
 
@@ -22,7 +22,7 @@ trait Distance {
 
 }
 
-trait NodeIO {
+trait NodeSerde {
 
   def nodeSizeInBytes(dim: Int): Int
 

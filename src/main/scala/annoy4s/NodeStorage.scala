@@ -1,6 +1,6 @@
 package annoy4s
 
-abstract class NodeContainer(dim: Int, io: NodeIO) {
+abstract class NodeStorage(dim: Int, io: NodeSerde) {
 
   final val nodeSizeInBytes = io.nodeSizeInBytes(dim)
 

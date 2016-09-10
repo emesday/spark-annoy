@@ -21,7 +21,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   private var verbose0: Boolean = false
 
-  private var nodes: NodeContainer = null
+  private var nodes: NodeStorage = null
 
   private val roots = new ArrayBuffer[Int]()
 
@@ -75,7 +75,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def save(filename: String, reload: Boolean = true): Boolean = {
     nodes match {
-      case heapNodes: HeapNodeContainer =>
+      case heapNodes: HeapNodeStorage =>
         heapNodes.prepareToWrite()
         val fs = new FileOutputStream(filename).getChannel
         fs.write(heapNodes.underlying)
@@ -92,7 +92,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def unload(): Unit = {
     nodes match {
-      case mappedNodes: MappedNodeContainer =>
+      case mappedNodes: MappedNodeStorage =>
         mappedNodes.close()
       case _ =>
     }
@@ -101,7 +101,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
   }
 
   def load(filename: String, useHeap: Boolean = false): Boolean = {
-    val nodesOnFile = new MappedNodeContainer(dim, filename, metric)
+    val nodesOnFile = new MappedNodeStorage(dim, filename, metric)
     nodes = nodesOnFile
     nNodes = nodes.getSize / nodeSizeInBytes
     var m = -1
@@ -124,7 +124,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     nItems = m
 
     if (useHeap) {
-      val nodesOnHeap = new HeapNodeContainer(dim, nNodes, metric)
+      val nodesOnHeap = new HeapNodeStorage(dim, nNodes, metric)
       nodesOnFile.underlying.rewind()
       nodesOnHeap.underlying.put(nodesOnFile.underlying)
       nodes = nodesOnHeap
@@ -232,7 +232,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   private def ensureSize(n: Int): Unit = {
     if (nodes == null)
-      nodes = new HeapNodeContainer(dim, 0, metric)
+      nodes = new HeapNodeStorage(dim, 0, metric)
     nodes.ensureSize(n, verbose0)
   }
 

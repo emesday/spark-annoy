@@ -4,7 +4,7 @@ import java.io.RandomAccessFile
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 
-class MappedNodeContainer(dim: Int, filename: String, io: NodeIO) extends NodeContainer(dim, io) {
+class MappedNodeStorage(dim: Int, filename: String, io: NodeSerde) extends NodeStorage(dim, io) {
 
   val memoryMappedFile = new RandomAccessFile(filename, "r")
   val fileSize = memoryMappedFile.length()

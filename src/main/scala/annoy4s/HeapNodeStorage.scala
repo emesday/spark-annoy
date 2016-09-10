@@ -2,7 +2,7 @@ package annoy4s
 
 import java.nio.{ByteBuffer, ByteOrder}
 
-class HeapNodeContainer(dim: Int, _size: Int, io: NodeIO) extends NodeContainer(dim, io) {
+class HeapNodeStorage(dim: Int, _size: Int, io: NodeSerde) extends NodeStorage(dim, io) {
 
   import Functions._
 

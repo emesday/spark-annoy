@@ -9,7 +9,7 @@ import java.nio.ByteBuffer
   * n_children[1]: Int = 4
   * v: Array[Float] = f * 4
   */
-trait EuclideanNodeIO extends NodeIO {
+trait EuclideanSerde extends NodeSerde {
 
   override def nodeSizeInBytes(dim: Int): Int = 16 + dim * 4
   override def childrenCapacity(dim: Int): Int = 2 + dim
