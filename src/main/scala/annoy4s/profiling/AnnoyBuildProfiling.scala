@@ -9,7 +9,7 @@ object AnnoyBuildProfiling  {
   def main(args: Array[String]) {
 
     val f = dataset.head.length
-    elapsed("build", 3000) {
+    elapsed("build", 3000, logging = true) {
       val i = new AnnoyIndex(f)
       dataset.zipWithIndex.foreach { case (v, j) =>
         i.addItem(j, v)

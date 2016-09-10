@@ -1,21 +1,33 @@
 package annoy4s.profiling
 
+import java.io.FileWriter
+
 object AnnoyDataset {
 
-  def elapsed[T](title: String, trial: Int = 1, _interval: Int = 100)(f: => T): T = {
+  def elapsed[T](title: String, trial: Int = 1, _interval: Int = 100, logging: Boolean = false)(f: => T): T = {
+    var fw: FileWriter = null
+    if (logging)
+      fw = new FileWriter(s"${System.currentTimeMillis()}.elapsed.log")
     var r: T = null.asInstanceOf[T]
     val s = System.currentTimeMillis()
     var sub = s
     val interval = math.min(trial, _interval)
     println(s"job: $title (trial: $trial, interval: $interval)")
+    if (logging)
+      fw.write(s"job: $title (trial: $trial, interval: $interval)\n")
+
     (1 to trial) foreach { i =>
       r = f
       if (i % interval == 0) {
         val c = System.currentTimeMillis()
         println(f"(${i - interval}%10d ~ $i%10d) trials elapsed (ms): ${c - sub}%10d, total: ${c - s}%10d")
+        if (logging)
+          fw.write(f"(${i - interval}%10d ~ $i%10d) trials elapsed (ms): ${c - sub}%10d, total: ${c - s}%10d\n")
         sub = c
       }
     }
+    if (logging)
+      fw.close()
     r
   }
 
