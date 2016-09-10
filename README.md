@@ -39,52 +39,37 @@ object AnnoyExample {
 
 ## Item similarity computation
 ```scala
-object AnnoyLoader {
-  // singleton on every executors
-  var annoy: AnnoyIndex = _
-  def getAnnoy(dim: Int, filename: String): AnnoyIndex = {
-    if (annoy == null) {
-      annoy = new AnnoyIndex(dim)
-      annoy.load(filename)
-    }
-    annoy
-  }
-}
-
-val dataset: DataFrame = ???
+val dataset: DataFrame = ??? // your dataset
 val rank: Int = 50
-// This will be the size of `item.toLocalIterator`
-// which is the number of partitions.
-val numItemBlocks: Int = 100
-val annoyIndexFilename: String = "annoy-index"
 
-val alsModel: ALSModel = 
-  new ALS().setRank(rank).setNumItemBlocks(numItemBlocks).fit(dataset)
+val alsModel: ALSModel = new ALS()
+  .setRank(rank).fit(dataset)
 
-val itemFactors: RDD[(Int, Array[Float])] = 
-  alsModel.itemFactors.map { case Row(id: Int, features: Seq[_]) =>
-    (id, features.asInstanceOf[Seq[Float]].toArray)
-  }
+val annoyModel: AnnoyModel = new Annoy()
+  .setDimension(rank)
+  .fit(alsModel.itemFactors)
 
-// Build a Annoy index on the Driver.
-val annoyOnDriver: AnnoyIndex = new AnnoyIndex(rank)
+val result: DataFrame = annoyModel
+  .setK(10) // find 10 neighbors
+  .transform(alsModel.itemFactors)
 
-// The iterator will consume as much memory as the largest partition in this RDD.
-itemFactors.toLocalIterator.foreach { case (id, v) =>
-  annoyOnDriver.addItem(id, v)
-}
-
-// build and save
-annoyOnDriver.build(10)
-annoyOnDriver.save(annoyIndexFilename)
-
-// Add the index file to be downloaded on every executors.
-dataset.sqlContext.sparkContext.addFile(annoyIndexFilename)
-
-// nn computing on Executors
-val itemSimilarity: RDD[(Int, Array[(Int, Float)])] = 
-  itemFactors.keys.map(x => (x, AnnoyLoader.getAnnoy(rank, annoyIndexFilename).getNnsByItem(x, 10)))
+result.show()
 ```      
+
+The `result.show()` shows
+
+```
++---+--------------------+--------------------+
+| id|            features|           neighbors|
++---+--------------------+--------------------+
+|  0|[0.00000000, 0.00...|[0, 000, 0000, 00...|
+|  1|[0.00000000, 0.00...|[1, 0000, 0000, 0...|
++---+--------------------+--------------------+
+```
+
+where `id` and `features` are computed in `ALS`, 
+and `neighbors` contains neighbors' ids (replaced to 0s for documentation).
+
  - For more information of ALS see this [link](http://spark.apache.org/docs/2.0.0/ml-collaborative-filtering.html)
 
 
@@ -93,7 +78,7 @@ val itemSimilarity: RDD[(Int, Array[(Int, Float)])] =
 ```
 resolvers += Resolver.bintrayRepo("mskimm", "maven")
 
-libraryDependencies += "com.github.mskimm" %% "annoy4s" % "0.0.2"
+libraryDependencies += "com.github.mskimm" %% "annoy4s" % "0.0.3"
 ```
 
 # References
