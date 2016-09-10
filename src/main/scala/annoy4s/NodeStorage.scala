@@ -14,7 +14,7 @@ abstract class NodeStorage(dim: Int, io: NodeSerde) {
 
   def newNode: Node
 
-  def getSize: Int
+  def numNodes: Int
 
   def flip(): Unit
 

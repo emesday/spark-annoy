@@ -13,7 +13,7 @@ class HeapNodeStorage(dim: Int, _size: Int, io: NodeSerde) extends NodeStorage(d
 
   override val bufferType: String = underlying.getClass.getSimpleName
 
-  override def getSize: Int = size
+  override def numNodes: Int = size
 
   override def ensureSize(n: Int, verbose: Boolean): Int = {
     if (n > size) {

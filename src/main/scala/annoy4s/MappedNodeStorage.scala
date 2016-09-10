@@ -7,14 +7,14 @@ import java.nio.channels.FileChannel
 class MappedNodeStorage(dim: Int, filename: String, io: NodeSerde) extends NodeStorage(dim, io) {
 
   val memoryMappedFile = new RandomAccessFile(filename, "r")
-  val fileSize = memoryMappedFile.length()
+  val fileSize = memoryMappedFile.length().toInt
   val underlying = memoryMappedFile.getChannel.map(
     FileChannel.MapMode.READ_ONLY, 0, fileSize)
     .order(ByteOrder.LITTLE_ENDIAN)
 
   override val bufferType = underlying.getClass.getSimpleName
 
-  override def getSize: Int = fileSize.toInt
+  override def numNodes: Int = fileSize.toInt / nodeSizeInBytes
 
   override def ensureSize(n: Int, verbose: Boolean): Int = throw new IllegalAccessError("readonly")
 

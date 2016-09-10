@@ -103,7 +103,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
   def load(filename: String, useHeap: Boolean = false): Boolean = {
     val nodesOnFile = new MappedNodeStorage(dim, filename, metric)
     nodes = nodesOnFile
-    nNodes = nodes.getSize / nodeSizeInBytes
+    nNodes = nodes.numNodes / nodeSizeInBytes
     var m = -1
     var i = nNodes - 1
     while (i >= 0) {
