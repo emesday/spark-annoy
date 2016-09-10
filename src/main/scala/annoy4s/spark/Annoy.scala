@@ -34,6 +34,8 @@ trait AnnoyModelParams extends Params {
 
   val debug: BooleanParam = new BooleanParam(this, "debug", "set on/off debug mode")
 
+  setDefault(debug, false)
+
   def getDebug: Boolean = $(debug)
 
 }
