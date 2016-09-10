@@ -10,3 +10,9 @@ object RandRandom extends Random {
   override def flip(): Boolean = rnd.nextBoolean()
   override def index(n: Int): Int = rnd.nextInt(n)
 }
+
+object FixRandom extends Random {
+  val rnd = new scala.util.Random(0)
+  override def flip(): Boolean = rnd.nextBoolean()
+  override def index(n: Int): Int = rnd.nextInt(n)
+}

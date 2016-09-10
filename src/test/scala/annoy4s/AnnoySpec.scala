@@ -9,14 +9,8 @@ class AnnoySpec extends FlatSpec with Matchers {
 
   import AnnoyDataset._
 
-  class FixRandom extends Random {
-    val rnd = new scala.util.Random(0)
-    override def flip(): Boolean = rnd.nextBoolean()
-    override def index(n: Int): Int = rnd.nextInt(n)
-  }
-
   val f = dataset.head.length
-  val i = new AnnoyIndex(f, new FixRandom)
+  val i = new AnnoyIndex(f, FixRandom)
   dataset.zipWithIndex.foreach { case (v, j) =>
     i.addItem(j, v)
   }
