@@ -41,10 +41,9 @@ object AnnoyExample {
 ## Item similarity computation
 ```scala
 val dataset: DataFrame = ??? // your dataset
-val rank: Int = 50
 
 val alsModel: ALSModel = new ALS()
-  .setRank(rank).fit(dataset)
+  .fit(dataset)
 
 val annoyModel: AnnoyModel = new Annoy()
   .setDimension(rank)
@@ -60,28 +59,29 @@ result.show()
 The `result.show()` shows
 
 ```
-+---+--------------------+--------------------+
-| id|            features|           neighbors|
-+---+--------------------+--------------------+
-|  0|[0.00000000, 0.00...|[0, 000, 0000, 00...|
-|  1|[0.00000000, 0.00...|[1, 0000, 0000, 0...|
-+---+--------------------+--------------------+
++---+--------+-----------+
+| id|neighbor|   distance|
++---+--------+-----------+
+|  0|       0|        0.0|
+|  0|      50|0.014339785|
+...
+|  1|       1|        0.0|
+|  1|      36|0.011467933|
+...
++---+--------+-----------+
 ```
 
-where `id` and `features` are computed in `ALS`, 
-and `neighbors` contains neighbors' ids (replaced to 0s for documentation).
-
  - For more information of ALS see this [link](http://spark.apache.org/docs/2.0.0/ml-collaborative-filtering.html)
-
+ - Working example is at 'src/test/scala/ann4s/spark/AnnoySparkSpec.scala'
 
 # Installation
 
 ```
 resolvers += Resolver.bintrayRepo("mskimm", "maven")
 
-libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.4"
+libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.5"
 ```
- - `0.0.4` is built with Apache Spark 1.6.2
+ - `0.0.5` is built with Apache Spark 1.6.2
 
 # References
  - https://github.com/spotify/annoy : native implementation with serveral bindings like Python

@@ -21,7 +21,7 @@ class AnnoySparkSpec extends FlatSpec with Matchers with LocalSparkContext {
 
     val idCol = "id"
     val featuresCol = "features"
-    val outputCol = "output"
+    val neighborCol = "neighbor"
     val dimension = features.head.length
 
     val rdd: RDD[(Int, Array[Float])] =
@@ -33,7 +33,7 @@ class AnnoySparkSpec extends FlatSpec with Matchers with LocalSparkContext {
       .setDimension(dimension)
       .setIdCol(idCol)
       .setFeaturesCol(featuresCol)
-      .setOutputCol(outputCol)
+      .setNeighborCol(neighborCol)
       .setDebug(true)
       .fit(dataset)
 
@@ -43,10 +43,14 @@ class AnnoySparkSpec extends FlatSpec with Matchers with LocalSparkContext {
 
     result.show()
 
-    result.select(idCol, outputCol).collect()
-      .foreach { case Row(id: Int, output: Seq[_]) =>
-        output.asInstanceOf[Seq[Int]]
-          .intersect(trueNns(id)).length should be >= 2
+    result.select(idCol, neighborCol)
+      .map { case Row(id: Int, neighbor: Int) =>
+        (id, neighbor)
+      }
+      .groupByKey()
+      .collect()
+      .foreach { case (id, nns) =>
+        nns.toSeq.intersect(trueNns(id)).length should be >= 2
       }
   }
 

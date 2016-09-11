@@ -4,8 +4,8 @@ import ann4s.{AnnoyIndex, FixRandom}
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.util.{Identifiable, MLWritable, MLWriter}
 import org.apache.spark.ml.{Estimator, Model}
-import org.apache.spark.sql.functions.udf
-import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
+import org.apache.spark.sql.functions.{col, explode, udf}
+import org.apache.spark.sql.types.{FloatType, IntegerType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 
 trait AnnoyModelParams extends Params {
@@ -22,11 +22,17 @@ trait AnnoyModelParams extends Params {
 
   def getFeaturesCol: String = $(featuresCol)
 
-  val outputCol: Param[String] = new Param[String](this, "outputCol", "output column name")
+  val neighborCol: Param[String] = new Param[String](this, "neighborCol", "neighbor column name")
 
-  def getOutputCol: String = $(outputCol)
+  def getNeighborCol: String = $(neighborCol)
 
-  setDefault(outputCol, "neighbors")
+  setDefault(neighborCol, "neighbor")
+
+  val distanceCol: Param[String] = new Param[String](this, "distanceCol", "distance column name")
+
+  def getDistanceCol: String = $(distanceCol)
+
+  setDefault(distanceCol, "distance")
 
   def k: IntParam = new IntParam(this, "k", "number of neighbors to find")
 
@@ -72,21 +78,28 @@ class AnnoyModel (
   override def write: MLWriter = ???
 
   override def transformSchema(schema: StructType): StructType = {
-    StructType(schema :+ StructField($(outputCol), IntegerType))
+    // |id|neighbor|distance|
+    StructType(Seq(
+      StructField($(idCol), IntegerType),
+      StructField($(neighborCol), IntegerType),
+      StructField($(distanceCol), FloatType)
+    ))
   }
 
   override def transform(dataset: DataFrame): DataFrame = {
     val getNns = udf { (features: Seq[Float]) =>
       if (features != null) {
-        annoyIndexOnExecutor.getNnsByVector(features.toArray, $(k), -1).map(_._1)
+        annoyIndexOnExecutor.getNnsByVector(features.toArray, $(k), -1)
       } else {
-        Array.empty[Int]
+        Array.empty[(Int, Float)]
       }
     }
 
     dataset
-      .select(dataset("*"),
-        getNns(dataset($(featuresCol))).as($(outputCol)))
+      .withColumn("nns", explode(getNns(dataset($(featuresCol)))))
+      .select(dataset($(idCol)),
+        col("nns")("_1") as $(neighborCol),
+        col("nns")("_2") as $(distanceCol))
   }
 
 }
@@ -107,14 +120,15 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
 
   def setDimension(value: Int): this.type = set(dimension, value)
 
-  def setOutputCol(value: String): this.type = set(outputCol, value)
+  def setNeighborCol(value: String): this.type = set(neighborCol, value)
+
+  def setDistanceCol(value: String): this.type = set(distanceCol, value)
 
   def setDebug(value: Boolean): this.type = set(debug, value)
 
   def this() = this(Identifiable.randomUID("annoy"))
 
   override def fit(dataset: DataFrame): AnnoyModel = {
-
     val annoyOutputFile = s"annoy-index-$uid"
     val annoyIndex = if ($(debug)) {
       new AnnoyIndex($(dimension), FixRandom)
@@ -144,7 +158,13 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
   override def copy(extra: ParamMap): Estimator[AnnoyModel] = defaultCopy(extra)
 
   override def transformSchema(schema: StructType): StructType = {
-    StructType(schema :+ StructField($(outputCol), IntegerType))
+    // |id|neighbor|distance|
+    StructType(Seq(
+      StructField($(idCol), IntegerType),
+      StructField($(neighborCol), IntegerType),
+      StructField($(distanceCol), FloatType)
+    ))
   }
+
 }
 
