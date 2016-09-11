@@ -1,8 +1,8 @@
-package annoy4s
+package ann4s
 
 import java.io.FileOutputStream
 
-import annoy4s.Functions._
+import ann4s.Functions._
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

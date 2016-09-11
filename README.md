@@ -1,17 +1,15 @@
 [![Build Status](https://travis-ci.org/mskimm/annoy4s.svg?branch=master)](https://travis-ci.org/mskimm/annoy4s)
 
-# Annoy4s
-A Scala Implementation of [Annoy](https://github.com/spotify/annoy).
+# Ann4s
+A Scala Implementation of [Annoy](https://github.com/spotify/annoy) which searches nearest neighbors given query point. 
 
-Annoy4s also provides [DataFrame-based API](http://spark.apache.org/docs/latest/ml-guide.html) 
+Ann4s also provides [DataFrame-based API](http://spark.apache.org/docs/latest/ml-guide.html) 
 for [Apache Spark](https://spark.apache.org/).
-
-> Annoy (Approximate Nearest Neighbors Oh Yeah) is a C++ library with Python bindings to search for points in space that are close to a given query point. It also creates large read-only file-based data structures that are mmapped into memory so that many processes may share the same data.
 
 # Scala code example
 
 ```scala
-import annoy4s._
+import ann4s._
 
 object AnnoyExample {
 
@@ -81,7 +79,7 @@ and `neighbors` contains neighbors' ids (replaced to 0s for documentation).
 ```
 resolvers += Resolver.bintrayRepo("mskimm", "maven")
 
-libraryDependencies += "com.github.mskimm" %% "annoy4s" % "0.0.3"
+libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.4"
 ```
  - `0.0.3` is built with Apache Spark 1.6.2
 

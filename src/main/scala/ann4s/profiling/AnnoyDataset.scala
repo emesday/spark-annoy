@@ -1,4 +1,4 @@
-package annoy4s.profiling
+package ann4s.profiling
 
 import java.io.FileWriter
 

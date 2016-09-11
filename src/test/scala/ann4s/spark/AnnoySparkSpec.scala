@@ -1,13 +1,13 @@
-package annoy4s.spark
+package ann4s.spark
 
-import annoy4s.Random
+import ann4s.Random
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Row, DataFrame, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.scalatest.{FlatSpec, Matchers}
 
 class AnnoySparkSpec extends FlatSpec with Matchers with LocalSparkContext {
 
-  import annoy4s.profiling.AnnoyDataset.{dataset => features, trueNns}
+  import ann4s.profiling.AnnoyDataset.{dataset => features, trueNns}
 
   object FixRandom extends Random {
     val rnd = new scala.util.Random(0)

@@ -1,6 +1,6 @@
-package annoy4s.profiling
+package ann4s.profiling
 
-import annoy4s.AnnoyIndex
+import ann4s.AnnoyIndex
 
 object AnnoyQueryProfiling {
 

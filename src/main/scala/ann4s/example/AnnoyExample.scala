@@ -1,6 +1,6 @@
-package annoy4s.example
+package ann4s.example
 
-import annoy4s._
+import ann4s._
 
 object AnnoyExample {
 

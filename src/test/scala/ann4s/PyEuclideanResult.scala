@@ -1,5 +1,5 @@
 // generated code
-package annoy4s
+package ann4s
 
 object PyEuclideanResult {
 

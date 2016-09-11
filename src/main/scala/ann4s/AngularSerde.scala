@@ -1,4 +1,4 @@
-package annoy4s
+package ann4s
 
 import java.nio.ByteBuffer
 

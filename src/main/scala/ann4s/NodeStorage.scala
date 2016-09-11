@@ -1,4 +1,4 @@
-package annoy4s
+package ann4s
 
 abstract class NodeStorage(dim: Int, io: NodeSerde) {
 

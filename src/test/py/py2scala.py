@@ -24,8 +24,8 @@ angular.save(angular_output)
 euclidean.build(10)
 euclidean.save(euclidean_output)
 
-angular_result_output = 'src/test/scala/annoy4s/PyAngularResult.scala'
-euclidean_result_output = 'src/test/scala/annoy4s/PyEuclideanResult.scala'
+angular_result_output = 'src/test/scala/ann4s/PyAngularResult.scala'
+euclidean_result_output = 'src/test/scala/ann4s/PyEuclideanResult.scala'
 
 with open(angular_result_output, 'w') as f:
     nns = []
@@ -33,7 +33,7 @@ with open(angular_result_output, 'w') as f:
         nn = angular.get_nns_by_item(j, 10)
         nns.append('Array(' + ','.join(['%d' %x for x in nn]) + ')')
     f.write('''// generated code
-package annoy4s
+package ann4s
 
 object PyAngularResult {
 
@@ -52,7 +52,7 @@ with open(euclidean_result_output, 'w') as f:
         nn = euclidean.get_nns_by_item(j, 10)
         nns.append('Array(' + ','.join(['%d' %x for x in nn]) + ')')
     f.write('''// generated code
-package annoy4s
+package ann4s
 
 object PyEuclideanResult {
 

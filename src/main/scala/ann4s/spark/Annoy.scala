@@ -1,6 +1,6 @@
-package annoy4s.spark
+package ann4s.spark
 
-import annoy4s.{FixRandom, RandRandom, Random, AnnoyIndex}
+import ann4s.{AnnoyIndex, FixRandom}
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.util.{Identifiable, MLWritable, MLWriter}
 import org.apache.spark.ml.{Estimator, Model}
