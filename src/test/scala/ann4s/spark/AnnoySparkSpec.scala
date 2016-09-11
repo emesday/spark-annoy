@@ -15,7 +15,7 @@ class AnnoySparkSpec extends FlatSpec with Matchers with LocalSparkContext {
     override def index(n: Int): Int = rnd.nextInt(n)
   }
 
-  "Spark ML API" should "work" in {
+  "Spark DataFrame-API" should "work" in {
     val sqlContext = new SQLContext(sc)
     import sqlContext.implicits._
 
@@ -37,7 +37,17 @@ class AnnoySparkSpec extends FlatSpec with Matchers with LocalSparkContext {
       .setDebug(true)
       .fit(dataset)
 
-    val result: DataFrame = annoyModel
+    annoyModel
+      .write
+      .overwrite
+      .save("annoy-spark-result")
+
+    val loadedModel = AnnoyModel
+      .read
+      .context(sqlContext)
+      .load("annoy-spark-result")
+
+    val result: DataFrame = loadedModel
       .setK(10) // find 10 neighbors
       .transform(dataset)
 

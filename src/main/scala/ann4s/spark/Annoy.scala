@@ -1,12 +1,16 @@
 package ann4s.spark
 
-import ann4s.{AnnoyIndex, FixRandom}
+import ann4s.{Angular, AnnoyIndex, Euclidean, FixRandom}
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.ml.SparkProxy.{DefaultParamsReader, DefaultParamsWriter}
 import org.apache.spark.ml.param._
-import org.apache.spark.ml.util.{Identifiable, MLWritable, MLWriter}
+import org.apache.spark.ml.util._
 import org.apache.spark.ml.{Estimator, Model}
 import org.apache.spark.sql.functions.{col, explode, udf}
 import org.apache.spark.sql.types.{FloatType, IntegerType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
+import org.json4s.DefaultFormats
+import org.json4s.JsonDSL._
 
 trait AnnoyModelParams extends Params {
 
@@ -36,6 +40,8 @@ trait AnnoyModelParams extends Params {
 
   def k: IntParam = new IntParam(this, "k", "number of neighbors to find")
 
+  setDefault(k, 10)
+
   def getK: Int = $(k)
 
   val debug: BooleanParam = new BooleanParam(this, "debug", "set on/off debug mode")
@@ -55,9 +61,9 @@ class AnnoyModel (
   def setK(value: Int): this.type = set(k, value)
 
   // every executors initialize this respectively.
-  var _annoyIndexOnExecutor: AnnoyIndex = _
+  private var _annoyIndexOnExecutor: AnnoyIndex = _
 
-  def annoyIndexOnExecutor: AnnoyIndex = if (_annoyIndexOnExecutor == null) {
+  private def annoyIndexOnExecutor: AnnoyIndex = if (_annoyIndexOnExecutor == null) {
     _annoyIndexOnExecutor = if ($(debug)) {
       new AnnoyIndex(dimension, FixRandom)
     } else {
@@ -75,7 +81,7 @@ class AnnoyModel (
     copyValues(copied, extra).setParent(parent)
   }
 
-  override def write: MLWriter = ???
+  override def write: MLWriter = new AnnoyModel.AnnoyModelWriter(this)
 
   override def transformSchema(schema: StructType): StructType = {
     // |id|neighbor|distance|
@@ -87,6 +93,9 @@ class AnnoyModel (
   }
 
   override def transform(dataset: DataFrame): DataFrame = {
+    // broadcast the file
+    dataset.sqlContext.sparkContext.addFile(indexFile)
+
     val getNns = udf { (features: Seq[Float]) =>
       if (features != null) {
         annoyIndexOnExecutor.getNnsByVector(features.toArray, $(k), -1)
@@ -104,11 +113,67 @@ class AnnoyModel (
 
 }
 
+object AnnoyModel extends MLReadable[AnnoyModel] {
+
+  override def read: MLReader[AnnoyModel] = new AnnoyModelReader
+
+  override def load(path: String): AnnoyModel = super.load(path)
+
+  private[AnnoyModel] class AnnoyModelWriter(instance: AnnoyModel) extends MLWriter {
+
+    override protected def saveImpl(path: String): Unit = {
+      val extraMap = ("dimension" -> instance.dimension) ~
+        ("indexFile" -> instance.indexFile)
+      DefaultParamsWriter.saveMetadata(instance, path, sc, Some(extraMap))
+      FileSystem.get(sqlContext.sparkContext.hadoopConfiguration)
+        .copyFromLocalFile(false, new Path(instance.indexFile), new Path(path, instance.indexFile))
+    }
+
+  }
+
+  private class AnnoyModelReader extends MLReader[AnnoyModel] {
+
+    /** Checked against metadata when loading model */
+    private val className = classOf[AnnoyModel].getName
+
+    override def load(path: String): AnnoyModel = {
+      implicit val format = DefaultFormats
+      val metadata = DefaultParamsReader.loadMetadata(path, sc, className)
+      val dimension = (metadata.metadata \ "dimension").extract[Long].toInt
+      val indexFile = (metadata.metadata \ "indexFile").extract[String]
+
+      FileSystem.get(sqlContext.sparkContext.hadoopConfiguration)
+        .copyToLocalFile(false, new Path(path, indexFile), new Path(indexFile))
+
+      val model = new AnnoyModel(metadata.uid, dimension, indexFile)
+      DefaultParamsReader.getAndSetParams(model, metadata)
+      model
+    }
+  }
+}
+
 trait AnnoyParams extends AnnoyModelParams {
 
-  val dimension = new IntParam(this, "dimension", "dimension of vectors", ParamValidators.gtEq(1))
+  def metricValidator: String => Boolean = {
+    case "angular" | "euclidean" => true
+    case _ => false
+  }
+
+  val dimension: IntParam = new IntParam(this, "dimension", "dimension of vectors", ParamValidators.gtEq(1))
 
   def getDimension: Int = $(dimension)
+
+  val metric: Param[String] = new Param[String](this, "metric", "metric", metricValidator)
+
+  setDefault(metric, "angular")
+
+  def getMetric: String = $(metric)
+
+  val numTrees: IntParam = new IntParam(this, "numTrees", "number of trees", ParamValidators.gtEq(1))
+
+  setDefault(numTrees, 10)
+
+  def getNumTrees: Int = $(numTrees)
 
 }
 
@@ -126,30 +191,43 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
 
   def setDebug(value: Boolean): this.type = set(debug, value)
 
+  def setNumTrees(value: Int): this.type = set(numTrees, value)
+
+  def setMetric(value: String): this.type = set(metric, value)
+
   def this() = this(Identifiable.randomUID("annoy"))
 
   override def fit(dataset: DataFrame): AnnoyModel = {
     val annoyOutputFile = s"annoy-index-$uid"
-    val annoyIndex = if ($(debug)) {
-      new AnnoyIndex($(dimension), FixRandom)
+
+    val m = if ($(metric) == "angular") {
+      Angular
+    } else if ($(metric) == "euclidean") {
+      Euclidean
     } else {
-      new AnnoyIndex($(dimension))
+      throw new IllegalArgumentException()
     }
+
+    val annoyIndex = if ($(debug)) {
+      new AnnoyIndex($(dimension), m, FixRandom)
+    } else {
+      new AnnoyIndex($(dimension), m)
+    }
+
     val items = dataset
       .select($(idCol), $(featuresCol))
       .map { case Row(id: Int, features: Seq[_]) =>
         (id, features.asInstanceOf[Seq[Float]].toArray)
       }
+
     items.toLocalIterator
       .foreach { case (id, features) =>
         annoyIndex.addItem(id, features)
       }
-    annoyIndex.build(10)
+
+    annoyIndex.build($(numTrees))
     annoyIndex.save(annoyOutputFile)
     annoyIndex.unload()
-
-    // broadcast the file
-    dataset.sqlContext.sparkContext.addFile(annoyOutputFile)
 
     val model = new AnnoyModel(uid, $(dimension), annoyOutputFile).setParent(this)
     copyValues(model)
