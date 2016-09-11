@@ -81,7 +81,7 @@ resolvers += Resolver.bintrayRepo("mskimm", "maven")
 
 libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.4"
 ```
- - `0.0.3` is built with Apache Spark 1.6.2
+ - `0.0.4` is built with Apache Spark 1.6.2
 
 # References
  - https://github.com/spotify/annoy : native implementation with serveral bindings like Python
