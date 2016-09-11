@@ -46,7 +46,7 @@ val alsModel: ALSModel = new ALS()
   .fit(dataset)
 
 val annoyModel: AnnoyModel = new Annoy()
-  .setDimension(rank)
+  .setDimension(alsModel.rank)
   .fit(alsModel.itemFactors)
 
 val result: DataFrame = annoyModel
