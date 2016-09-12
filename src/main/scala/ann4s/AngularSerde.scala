@@ -26,8 +26,5 @@ trait AngularSerde extends NodeSerde {
   override def setA(underlying: ByteBuffer, offsetInBytes: Int, a: Float): Unit =
     throw new IllegalAccessError()
 
-
-
-
 }
 

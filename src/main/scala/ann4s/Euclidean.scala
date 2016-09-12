@@ -21,8 +21,16 @@ object Euclidean extends Metric with EuclideanSerde {
     d
   }
 
-  override def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float =
-    blas.dot(n.getVector(buffer), y) + n.getA
+  override def margin(n: Node, sx: Array[Float], buffer: Array[Float]): Float ={
+    val sy = n.getVector(buffer)
+    var dot: Float = 0
+    var z = 0
+    while (z < sx.length) {
+      dot += sx(z) * sy(z)
+      z += 1
+    }
+    dot + n.getA
+  }
 
   override def side(n: Node, y: Array[Float], random: Random, buffer: Array[Float]): Boolean = {
     val dot = margin(n, y, buffer)

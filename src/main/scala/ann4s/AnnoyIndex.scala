@@ -15,8 +15,6 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def this(f: Int) = this(f, Angular, RandRandom)
 
-  private val nodeSizeInBytes: Int = metric.nodeSizeInBytes(dim)
-
   private val childrenCapacity: Int = metric.childrenCapacity(dim)
 
   private var verbose0: Boolean = false
@@ -314,6 +312,6 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     getNode(item).copyFrom(m)
     item
   }
-}
 
+}
 

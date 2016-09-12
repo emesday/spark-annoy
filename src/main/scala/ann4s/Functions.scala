@@ -2,30 +2,17 @@ package ann4s
 
 import scala.collection.mutable.ArrayBuffer
 
-trait BLASInterface {
+object Functions {
 
-  def nrm2(x: Array[Float]): Float
+  val Zero = 0f
 
-  def scal(sa: Float, sx: Array[Float]): Unit
+  val One = 1f
 
-  def dot(sx: Array[Float], sy: Array[Float]): Float
+  val iterationSteps = 200
 
-}
+  def showUpdate(text: String, xs: Any*): Unit = Console.err.print(text.format(xs: _*))
 
-//object NetlibBLAS extends BLASInterface {
-//
-//  val blas = com.github.fommil.netlib.BLAS.getInstance()
-//
-//  override def nrm2(x: Array[Float]): Float = blas.snrm2(x.length, x, 1)
-//
-//  override def scal(sa: Float, sx: Array[Float]): Unit = blas.sscal(sx.length, sa, sx, 1)
-//
-//  override def dot(sx: Array[Float], sy: Array[Float]): Float = blas.sdot(sx.length, sx, 1, sy, 1)
-//}
-
-object SimpleBLAS extends BLASInterface {
-
-  override def nrm2(x: Array[Float]): Float = {
+  def getNorm(x: Array[Float]): Float = {
     var sqNorm: Double = 0
     var z = 0
     while (z < x.length) {
@@ -35,42 +22,14 @@ object SimpleBLAS extends BLASInterface {
     math.sqrt(sqNorm).toFloat
   }
 
-  override def scal(sa: Float, sx: Array[Float]): Unit = {
-    val norm = nrm2(sx)
+  def normalize(sx: Array[Float]): Unit = {
+    val norm = getNorm(sx)
     var z = 0
     while (z < sx.length) {
       sx(z) /= norm
       z += 1
     }
   }
-
-  override def dot(sx: Array[Float], sy: Array[Float]): Float = {
-    var dot: Float = 0
-    var z = 0
-    while (z < sx.length) {
-      dot += sx(z) * sy(z)
-      z += 1
-    }
-    dot
-  }
-
-}
-
-object Functions {
-
-  val Zero = 0f
-
-  val One = 1f
-
-  val blas = SimpleBLAS
-
-  val iterationSteps = 200
-
-  def showUpdate(text: String, xs: Any*): Unit = Console.err.print(text.format(xs: _*))
-
-  def getNorm(v: Array[Float]): Float = blas.nrm2(v)
-
-  def normalize(v: Array[Float]): Unit = blas.scal(One / getNorm(v), v)
 
   def twoMeans(nodes: ArrayBuffer[Node], cosine: Boolean, iv: Array[Float], jv: Array[Float], metric: Distance, rand: Random): Unit = {
     val count = nodes.length

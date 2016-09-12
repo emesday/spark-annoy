@@ -10,14 +10,30 @@ object Angular extends Metric with AngularSerde {
 
   override def distance(x: Array[Float], y: Array[Float]): Float = {
     require(x.length == y.length)
-    val pp = blas.dot(x, x)
-    val qq = blas.dot(y, y)
-    val pq = blas.dot(x, y)
-    val ppqq: Double = pp * qq
+    var pp = 0f
+    var qq = 0f
+    var pq = 0f
+    var z = 0
+    while (z < x.length) {
+      pp += x(z) * x(z)
+      qq += y(z) * y(z)
+      pq += x(z) * y(z)
+      z += 1
+    }
+    val ppqq = pp * qq
     if (ppqq > 0) (2.0 - 2.0 * pq / Math.sqrt(ppqq)).toFloat else 2.0f
   }
 
-  override def margin(n: Node, y: Array[Float], buffer: Array[Float]): Float = blas.dot(n.getVector(buffer), y)
+  override def margin(n: Node, sx: Array[Float], buffer: Array[Float]): Float = {
+    val sy = n.getVector(buffer)
+    var dot: Float = 0
+    var z = 0
+    while (z < sx.length) {
+      dot += sx(z) * sy(z)
+      z += 1
+    }
+    dot
+  }
 
   override def side(n: Node, y: Array[Float], random: Random, buffer: Array[Float]): Boolean = {
     val dot = margin(n, y, buffer)
@@ -46,4 +62,5 @@ object Angular extends Metric with AngularSerde {
   override def normalizeDistance(distance: Float): Float = {
     math.sqrt(math.max(distance, Zero)).toFloat
   }
+
 }
