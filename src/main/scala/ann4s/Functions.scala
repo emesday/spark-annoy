@@ -49,23 +49,22 @@ object Functions {
     var ic = 1
     var jc = 1
     var l = 0
-    var z = 0
-    val v = new Array[Float](dim)
+    val vectorBuffer = new Array[Float](dim)
     while (l < iterationSteps) {
       val k = rand.index(count)
-      val zz = nodes(k).getVector(v)
+      val zz = nodes(k).getVector(vectorBuffer)
       val di = ic * metric.distance(iv, zz)
       val dj = jc * metric.distance(jv, zz)
       val norm = if (cosine) getNorm(zz) else One
       if (di < dj) {
-        z = 0
+        var z = 0
         while (z < dim) {
           iv(z) = (iv(z) * ic + zz(z) / norm) / (ic + 1)
           z += 1
         }
         ic += 1
       } else if (dj < di) {
-        z = 0
+        var z = 0
         while (z < dim) {
           jv(z) = (jv(z) * jc + zz(z) / norm) / (jc + 1)
           z += 1
