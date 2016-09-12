@@ -1,7 +1,5 @@
 package ann4s
 
-import java.nio.ByteBuffer
-
 /**
   * n_descendants: Int = 4
   * a: Float = 4

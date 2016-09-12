@@ -59,7 +59,7 @@ object Euclidean extends Metric with EuclideanNodeStruct {
       a += -vectorBuffer(z) * (bestIv(z) + bestJv(z)) / 2
       z += 1
     }
-    n.setV(vectorBuffer)
+    n.setVector(vectorBuffer)
     n.setA(a)
   }
 

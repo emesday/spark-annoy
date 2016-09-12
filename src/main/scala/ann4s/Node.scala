@@ -22,7 +22,11 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
 
   def getVector(dst: Array[Float]): Array[Float] = {
     underlying.position(offsetInBytes + struct.offsetValue)
-    underlying.asFloatBuffer().get(dst)
+    var i = 0
+    while (i < dst.length) {
+      dst(i) = underlying.getFloat
+      i += 1
+    }
     dst
   }
 
@@ -34,10 +38,9 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
   def setValue(v: Float): Unit = {
     require(!readonly)
     underlying.position(offsetInBytes + struct.offsetValue)
-    val floatBuffer = underlying.asFloatBuffer()
     var i = 0
     while (i < dim) {
-      floatBuffer.put(i, v)
+      underlying.putFloat(v)
       i += 1
     }
   }
@@ -60,10 +63,14 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
     underlying.asIntBuffer().put(indices)
   }
 
-  def setV(v: Array[Float]): Unit = {
+  def setVector(v: Array[Float]): Unit = {
     require(!readonly)
     underlying.position(offsetInBytes + struct.offsetValue)
-    underlying.asFloatBuffer().put(v)
+    var i = 0
+    while (i < v.length) {
+      underlying.putFloat(v(i))
+      i += 1
+    }
   }
 
   def setA(a: Float): Unit = {

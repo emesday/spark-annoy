@@ -56,7 +56,7 @@ object Angular extends Metric with AngularNodeStruct {
       z += 1
     }
     normalize(vectorBuffer)
-    n.setV(vectorBuffer)
+    n.setVector(vectorBuffer)
   }
 
   override def normalizeDistance(distance: Float): Float = {

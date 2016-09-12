@@ -42,7 +42,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     n.setChildren(0, 0)
     n.setChildren(1, 0)
     n.setNDescendants(1)
-    n.setV(w)
+    n.setVector(w)
 
     if (item >= nItems)
       nItems = item + 1
