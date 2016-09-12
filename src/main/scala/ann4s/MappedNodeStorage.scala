@@ -4,12 +4,13 @@ import java.io.RandomAccessFile
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 
-class MappedNodeStorage(dim: Int, filename: String, io: NodeSerde) extends NodeStorage(dim, io) {
+class MappedNodeStorage(dim: Int, filename: String, io: NodeStruct) extends NodeStorage(dim, io) {
 
   val memoryMappedFile = new RandomAccessFile(filename, "r")
+
   val fileSize = memoryMappedFile.length().toInt
-  val underlying = memoryMappedFile.getChannel.map(
-    FileChannel.MapMode.READ_ONLY, 0, fileSize)
+
+  val underlying = memoryMappedFile.getChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileSize)
     .order(ByteOrder.LITTLE_ENDIAN)
 
   override val bufferType = underlying.getClass.getSimpleName
@@ -26,7 +27,5 @@ class MappedNodeStorage(dim: Int, filename: String, io: NodeSerde) extends NodeS
 
   override def flip(): Unit = throw new IllegalAccessError("readonly")
 
-  def close() = {
-    memoryMappedFile.close()
-  }
+  def close() = memoryMappedFile.close()
 }

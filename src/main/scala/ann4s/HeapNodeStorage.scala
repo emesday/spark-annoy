@@ -2,13 +2,14 @@ package ann4s
 
 import java.nio.{ByteBuffer, ByteOrder}
 
-class HeapNodeStorage(dim: Int, _size: Int, io: NodeSerde) extends NodeStorage(dim, io) {
+class HeapNodeStorage(dim: Int, _size: Int, io: NodeStruct) extends NodeStorage(dim, io) {
 
   import Functions._
 
   val reallocation_factor = 1.3
 
   var size = _size
+
   var underlying = ByteBuffer.allocate(nodeSizeInBytes * size).order(ByteOrder.LITTLE_ENDIAN)
 
   override val bufferType: String = underlying.getClass.getSimpleName
@@ -44,4 +45,7 @@ class HeapNodeStorage(dim: Int, _size: Int, io: NodeSerde) extends NodeStorage(d
     readonly = true
     underlying.rewind()
   }
+
+  override def close(): Unit = {}
+
 }

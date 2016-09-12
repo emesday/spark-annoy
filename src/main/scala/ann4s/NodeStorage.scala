@@ -1,6 +1,6 @@
 package ann4s
 
-abstract class NodeStorage(dim: Int, io: NodeSerde) {
+abstract class NodeStorage(dim: Int, io: NodeStruct) {
 
   final val nodeSizeInBytes = io.nodeSizeInBytes(dim)
 
@@ -19,5 +19,7 @@ abstract class NodeStorage(dim: Int, io: NodeSerde) {
   def getSize: Int
 
   def flip(): Unit
+
+  def close(): Unit
 
 }

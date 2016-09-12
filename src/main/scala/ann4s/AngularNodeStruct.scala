@@ -8,7 +8,7 @@ import java.nio.ByteBuffer
   * n_children[1]: Int = 4
   * v: Array[Float] = f * 4
   */
-trait AngularSerde extends NodeSerde {
+trait AngularNodeStruct extends NodeStruct {
 
   override def nodeSizeInBytes(dim: Int): Int = 12 + dim * 4
 
@@ -20,11 +20,7 @@ trait AngularSerde extends NodeSerde {
 
   override val offsetValue: Int = 12
 
-  override def getA(underlying: ByteBuffer, offsetInBytes: Int): Float =
-    throw new IllegalAccessError()
-
-  override def setA(underlying: ByteBuffer, offsetInBytes: Int, a: Float): Unit =
-    throw new IllegalAccessError()
+  override lazy val offsetA: Int = throw new NotImplementedError
 
 }
 

@@ -2,7 +2,7 @@ package ann4s
 
 import scala.collection.mutable.ArrayBuffer
 
-object Angular extends Metric with AngularSerde {
+object Angular extends Metric with AngularNodeStruct {
 
   import Functions._
 

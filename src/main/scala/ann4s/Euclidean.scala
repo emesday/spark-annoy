@@ -2,7 +2,7 @@ package ann4s
 
 import scala.collection.mutable.ArrayBuffer
 
-object Euclidean extends Metric with EuclideanSerde {
+object Euclidean extends Metric with EuclideanNodeStruct {
 
   import Functions._
 
