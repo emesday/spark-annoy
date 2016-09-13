@@ -49,14 +49,15 @@ object Angular extends Metric with AngularNodeStruct {
     val bestJv = new Array[Float](dim)
     twoMeans(nodes, true, bestIv, bestJv, this, rand)
 
-    val vectorBuffer = n.getVector(new Array[Float](dim))
+    val result = bestIv
     var z = 0
     while (z < dim) {
-      vectorBuffer(z) = bestIv(z) - bestJv(z)
+      result(z) = bestIv(z) - bestJv(z)
       z += 1
     }
-    normalize(vectorBuffer)
-    n.setVector(vectorBuffer)
+
+    normalize(result)
+    n.setVector(result)
   }
 
   override def normalizeDistance(distance: Float): Float = {

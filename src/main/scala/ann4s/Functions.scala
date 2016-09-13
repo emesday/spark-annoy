@@ -52,10 +52,11 @@ object Functions {
     val vectorBuffer = new Array[Float](dim)
     while (l < iterationSteps) {
       val k = rand.index(count)
-      val zz = nodes(k).getVector(vectorBuffer)
+      val nn = nodes(k)
+      val zz = nn.getVector(vectorBuffer)
       val di = ic * metric.distance(iv, zz)
       val dj = jc * metric.distance(jv, zz)
-      val norm = if (cosine) getNorm(zz) else One
+      val norm = if (cosine) nn.norm else One
       if (di < dj) {
         var z = 0
         while (z < dim) {

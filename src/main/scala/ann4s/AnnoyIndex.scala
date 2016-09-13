@@ -257,7 +257,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
       return item
     }
 
-    val children = new ArrayBuffer[Node]()
+    val children = new ArrayBuffer[Node](indices.length)
     var i = 0
     while (i < indices.length) {
       val j = indices(i)
@@ -268,7 +268,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     }
 
     val childrenIndices = Array.fill(2) {
-      new ArrayBuffer[Int]
+      new ArrayBuffer[Int](indices.length)
     }
 
     val m = nodes.newNode
@@ -310,11 +310,10 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     val flip = if (childrenIndices(0).length > childrenIndices(1).length) 1 else 0
 
     m.setNDescendants(indices.length)
-    var side = 0
-    while (side < 2) {
-      m.setChildren(side ^ flip, makeTree(childrenIndices(side ^ flip)))
-      side += 1
-    }
+
+    m.setChildren(0 ^ flip, makeTree(childrenIndices(0 ^ flip)))
+    m.setChildren(1 ^ flip, makeTree(childrenIndices(1 ^ flip)))
+
     ensureSize(nNodes + 1)
     val item = nNodes
     nNodes += 1
