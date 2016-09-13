@@ -10,7 +10,7 @@ abstract class NodeStorage(dim: Int, io: NodeStruct) {
 
   def ensureSize(n: Int, verbose: Boolean): Int
 
-  def apply(i: Int): Node
+  def apply(i: Int, readonly: Boolean): Node
 
   def newNode: Node
 

@@ -23,7 +23,7 @@ class MappedNodeStorage(dim: Int, filename: String, io: NodeStruct) extends Node
 
   override def newNode: Node = throw new IllegalAccessError("readonly")
 
-  override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, io, true)
+  override def apply(i: Int, _readonly: Boolean): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, io, true)
 
   override def flip(): Unit = throw new IllegalAccessError("readonly")
 

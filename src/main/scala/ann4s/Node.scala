@@ -2,7 +2,13 @@ package ann4s
 
 import java.nio.ByteBuffer
 
-case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetInBytes: Int, struct: NodeStruct, readonly: Boolean) {
+case class Node(
+  dim: Int,
+  nodeSizeInBytes: Int,
+  underlying: ByteBuffer,
+  offsetInBytes: Int,
+  struct: NodeStruct,
+  readonly: Boolean = false) {
 
   def getNDescendants: Int = {
     underlying.position(offsetInBytes + struct.offsetDescendants)
@@ -81,16 +87,21 @@ case class Node(dim: Int, nodeSizeInBytes: Int, underlying: ByteBuffer, offsetIn
 
   def copyFrom(other: Node): Unit = {
     require(!readonly)
-    copy(other.underlying, other.offsetInBytes, underlying, offsetInBytes, nodeSizeInBytes)
+    _copy(other.underlying, other.offsetInBytes, underlying, offsetInBytes, nodeSizeInBytes)
   }
 
-  private def copy(src: ByteBuffer, srcOffsetInBytes: Int, dst: ByteBuffer, dstOffsetInBytes: Int, nodeSizeInBytes: Int): Unit = {
+  private def _copy(src: ByteBuffer, srcOffsetInBytes: Int, dst: ByteBuffer, dstOffsetInBytes: Int, nodeSizeInBytes: Int): Unit = {
     val dup = src.duplicate()
     dup.position(srcOffsetInBytes)
     dup.limit(srcOffsetInBytes + nodeSizeInBytes)
 
     dst.position(dstOffsetInBytes)
     dst.put(dup)
+  }
+
+  def commit() = {
+    require(!readonly)
+    struct.commit(underlying, offsetInBytes)
   }
 
 }

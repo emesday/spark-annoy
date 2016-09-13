@@ -34,7 +34,8 @@ class HeapNodeStorage(dim: Int, _size: Int, io: NodeStruct) extends NodeStorage(
 
   var readonly = false
 
-  override def apply(i: Int): Node = Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, io, readonly)
+  override def apply(i: Int, _readonly: Boolean): Node =
+    Node(dim, nodeSizeInBytes, underlying, i * nodeSizeInBytes, io, readonly || _readonly)
 
   override def newNode: Node = Node(dim, nodeSizeInBytes,
     ByteBuffer.allocate(nodeSizeInBytes).order(ByteOrder.LITTLE_ENDIAN), 0, io, readonly)

@@ -37,12 +37,14 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def addItem(item: Int, w: Array[Float]): Unit = {
     ensureSize(item + 1)
-    val n = getNode(item)
+    val n = getMutableNode(item)
 
     n.setChildren(0, 0)
     n.setChildren(1, 0)
     n.setNDescendants(1)
     n.setVector(w)
+
+    n.commit()
 
     if (item >= nItems)
       nItems = item + 1
@@ -63,7 +65,9 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     // This way we can load them faster without reading the whole file
     ensureSize(nNodes + roots.length)
     roots.zipWithIndex.foreach { case (root, i) =>
-      getNode(nNodes + i).copyFrom(getNode(root))
+      val n = getMutableNode(nNodes + i)
+      n.copyFrom(getImmutableNode(root))
+      n.commit()
     }
     nNodes += roots.length
     nodes.flip()
@@ -105,7 +109,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     var m = -1
     var i = nNodes - 1
     while (i >= 0) {
-      val k = getNode(i).getNDescendants
+      val k = getImmutableNode(i).getNDescendants
       if (m == -1 || k == m) {
         roots += i
         m = k
@@ -115,7 +119,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
       i -= 1
     }
 
-    if (roots.length > 1 && getNode(roots.head).getChildren(0) == getNode(roots.last).getChildren(0)) {
+    if (roots.length > 1 && getImmutableNode(roots.head).getChildren(0) == getImmutableNode(roots.last).getChildren(0)) {
       roots -= roots.last // pop_back
     }
     loaded = true
@@ -137,12 +141,12 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def getNItems: Int = nItems
 
-  def getItem(item: Int): Array[Float] = getNode(item).getVector(new Array[Float](dim))
+  def getItem(item: Int): Array[Float] = getImmutableNode(item).getVector(new Array[Float](dim))
 
   def getNnsByItem(item: Int, n: Int): Array[(Int, Float)] = getNnsByItem(item, n, -1)
 
   def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = {
-    val v = getNode(item).getVector(new Array[Float](dim))
+    val v = getImmutableNode(item).getVector(new Array[Float](dim))
     getAllNns(v, n, k)
   }
 
@@ -162,7 +166,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
       val top = q.dequeue()
       val d = top._1
       val i = top._2
-      val nd = getNode(i)
+      val nd = getImmutableNode(i)
       val nDescendants = nd.getNDescendants
       if (nDescendants == 1 && i < nItems) {
         nns += i
@@ -191,7 +195,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
       val j = sortedNns(i)
       if (j != last) {
         last = j
-        nnsDist += metric.distance(v, getNode(j).getVector(vectorBuffer)) -> j
+        nnsDist += metric.distance(v, getImmutableNode(j).getVector(vectorBuffer)) -> j
       }
       i += 1
     }
@@ -210,13 +214,17 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
   }
 
   def getDistance(i: Int, j: Int): Float = {
-    metric.distance(nodes(i).getVector(new Array[Float](dim)), nodes(j).getVector(new Array[Float](dim)))
+    metric.distance(getImmutableNode(i).getVector(new Array[Float](dim)), getImmutableNode(j).getVector(new Array[Float](dim)))
   }
 
-  private def getNode(item: Int): Node = nodes(item)
+  private def getImmutableNode(item: Int): Node =
+    nodes(item, readonly = true)
+
+  private def getMutableNode(item: Int): Node =
+    nodes(item, readonly = false)
 
   private def getNodeOrNull(item: Int): Node = {
-    val n = nodes(item)
+    val n = nodes(item, readonly = true)
     if (n.getNDescendants == 0) null else n
   }
 
@@ -242,9 +250,10 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
       ensureSize(nNodes + 1)
       val item = nNodes
       nNodes += 1
-      val m = getNode(item)
+      val m = getMutableNode(item)
       m.setNDescendants(indices.length)
       m.setAllChildren(indices.toArray)
+      m.commit()
       return item
     }
 
@@ -309,7 +318,9 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     ensureSize(nNodes + 1)
     val item = nNodes
     nNodes += 1
-    getNode(item).copyFrom(m)
+    val n = getMutableNode(item)
+    n.copyFrom(m)
+    n.commit()
     item
   }
 
