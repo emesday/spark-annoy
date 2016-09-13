@@ -10,18 +10,6 @@ case class Node(
   struct: NodeStruct,
   readonly: Boolean = false) {
 
-  lazy val norm: Float = {
-    underlying.position(offsetInBytes + struct.offsetValue)
-    var sqNorm: Double = 0
-    var z = 0
-    while (z < dim) {
-      val v = underlying.getFloat
-      sqNorm += v * v
-      z += 1
-    }
-    math.sqrt(sqNorm).toFloat
-  }
-
   def getNDescendants: Int = {
     underlying.position(offsetInBytes + struct.offsetDescendants)
     underlying.getInt()
