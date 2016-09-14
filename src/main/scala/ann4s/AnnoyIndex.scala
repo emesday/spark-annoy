@@ -163,9 +163,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     val nns = new ArrayBuffer[Int](searchK)
     val childrenBuffer = new Array[Int](childrenCapacity)
     while (nns.length < searchK && q.nonEmpty) {
-      val top = q.dequeue()
-      val d = top._1
-      val i = top._2
+      val (d, i) = q.dequeue()
       val nd = getImmutableNode(i)
       val nDescendants = nd.getNDescendants
       if (nDescendants == 1 && i < nItems) {
