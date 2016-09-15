@@ -50,6 +50,12 @@ trait AnnoyModelParams extends Params {
 
   def getDebug: Boolean = $(debug)
 
+  val verbose: BooleanParam = new BooleanParam(this, "verbose", "verbose")
+
+  setDefault(verbose, false)
+
+  def getVerbose: Boolean = $(verbose)
+
 }
 
 class AnnoyModel (
@@ -70,6 +76,7 @@ class AnnoyModel (
       new AnnoyIndex(dimension)
     }
 
+    _annoyIndexOnExecutor.verbose($(verbose))
     _annoyIndexOnExecutor.load(indexFile)
     _annoyIndexOnExecutor
   } else {
@@ -195,6 +202,8 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
 
   def setMetric(value: String): this.type = set(metric, value)
 
+  def setVerbose(value: Boolean): this.type = set(verbose, value)
+
   def this() = this(Identifiable.randomUID("annoy"))
 
   override def fit(dataset: DataFrame): AnnoyModel = {
@@ -213,6 +222,8 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
     } else {
       new AnnoyIndex($(dimension), m)
     }
+
+    annoyIndex.verbose($(verbose))
 
     val items = dataset
       .select($(idCol), $(featuresCol))
