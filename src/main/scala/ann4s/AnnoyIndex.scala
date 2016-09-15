@@ -3,6 +3,7 @@ package ann4s
 import java.io.FileOutputStream
 
 import ann4s.Functions._
+import org.apache.spark.proxy.BoundedPriorityQueue
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -151,26 +152,39 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def getNnsByVector(w: Array[Float], n: Int, k: Int): Array[(Int, Float)] = getAllNns(w, n, k)
 
+  val ord = new Ordering[(Int, Float)]{
+    def compare(x: (Int, Float), y: (Int, Float)): Int = {
+      val compare1 = Ordering[Float].compare(x._2, y._2)
+      if (compare1 != 0) return compare1
+      val compare2 = Ordering[Int].compare(x._1, y._1)
+      if (compare2 != 0) return compare2
+      0
+    }
+  }
+
   private def getAllNns(v: Array[Float], n: Int, k: Int): Array[(Int, Float)] = {
     val vectorBuffer = new Array[Float](dim)
     val searchK = if (k == -1) n * roots.length else k
 
     val q = new mutable.PriorityQueue[(Float, Int)] ++= roots.map(Float.PositiveInfinity -> _)
 
+    var searched = 0
     val nns = new ArrayBuffer[Int](searchK)
     val childrenBuffer = new Array[Int](childrenCapacity)
-    while (nns.length < searchK && q.nonEmpty) {
+    while (searched < searchK && q.nonEmpty) {
       val (d, i) = q.dequeue()
       val nd = getImmutableNode(i)
       val nDescendants = nd.getNDescendants
       if (nDescendants == 1 && i < nItems) {
         nns += i
+        searched += 1
       } else if (nDescendants <= childrenCapacity) {
         nd.getAllChildren(childrenBuffer)
-        var jj = 0
-        while (jj < nDescendants) {
-          nns += childrenBuffer(jj)
-          jj += 1
+        var j = 0
+        while (j < nDescendants) {
+          nns += childrenBuffer(j)
+          searched += 1
+          j += 1
         }
       } else {
         val margin = metric.margin(nd, v, vectorBuffer)
@@ -179,33 +193,23 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
       }
     }
 
-    // Get distances for all items
-    // To avoid calculating distance multiple times for any items, sort by id
-    val sortedNns = nns.toArray
-    java.util.Arrays.sort(sortedNns)
-    val nnsDist = new ArrayBuffer[(Float, Int)](sortedNns.length)
-    var last = -1
-    var i = 0
-    while (i < sortedNns.length) {
-      val j = sortedNns(i)
-      if (j != last) {
-        last = j
-        nnsDist += metric.distance(v, getImmutableNode(j).getVector(vectorBuffer)) -> j
+    val boundedQueue = new BoundedPriorityQueue[(Int, Float)](n)(ord.reverse)
+    val seen = new mutable.BitSet
+    for (j <- nns) {
+      if (!seen(j)) {
+        boundedQueue += j -> metric.distance(v, getImmutableNode(j).getVector(vectorBuffer))
+        seen += j
       }
-      i += 1
     }
 
-    val m = nnsDist.length
-    val p = math.min(n, m)
-
-    val partialSorted = new TopK[(Float, Int)](p, reversed = true)
-    nnsDist.foreach(partialSorted += _)
-
-    partialSorted
-      .map { case (dist, item) =>
-        (item, metric.normalizeDistance(dist))
-      }
-      .toArray
+    val result = boundedQueue.toArray
+    var i = 0
+    while (i < result.length) {
+      result(i) = (result(i)._1, metric.normalizeDistance(result(i)._2))
+      i += 1
+    }
+    java.util.Arrays.sort(result, 0, result.length, ord)
+    result
   }
 
   def getDistance(i: Int, j: Int): Float = {

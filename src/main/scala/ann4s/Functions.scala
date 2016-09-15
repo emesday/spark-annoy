@@ -76,28 +76,3 @@ object Functions {
   }
 }
 
-// code from https://github.com/scalanlp/breeze/blob/42c2e2522cf09259a34879e1c3b13b81176e410f/math/src/main/scala/breeze/util/TopK.scala
-class TopK[T](k : Int, reversed: Boolean = false)(implicit ord : Ordering[T]) extends Iterable[T] {
-
-  import scala.collection.JavaConversions._
-
-  val _ord = if (reversed) ord.reverse else ord
-
-  private val keys = new java.util.TreeSet[T](_ord)
-
-  def +=(e : T) = {
-    if (keys.size < k) {
-      keys.add(e)
-    } else if (keys.size > 0 && _ord.lt(keys.first, e) && !keys.contains(e)) {
-      keys.remove(keys.first)
-      keys.add(e)
-    }
-  }
-
-  override def iterator : Iterator[T] =
-    keys.descendingIterator
-
-  override def size = keys.size
-
-}
-
