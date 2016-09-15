@@ -2,7 +2,7 @@ package ann4s.spark
 
 import ann4s.{Angular, AnnoyIndex, Euclidean, FixRandom}
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.ml.SparkProxy.{DefaultParamsReader, DefaultParamsWriter}
+import org.apache.spark.ml.proxy.{DefaultParamsReader, DefaultParamsWriter}
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.util._
 import org.apache.spark.ml.{Estimator, Model}
