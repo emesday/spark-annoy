@@ -145,10 +145,7 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def getNnsByItem(item: Int, n: Int): Array[(Int, Float)] = getNnsByItem(item, n, -1)
 
-  def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = {
-    val v = getImmutableNode(item).getVector(new Array[Float](dim))
-    getAllNns(v, n, k)
-  }
+  def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = getAllNns(getItem(item), n, k)
 
   def getNnsByVector(w: Array[Float], n: Int): Array[(Int, Float)] = getNnsByVector(w, n, -1)
 
