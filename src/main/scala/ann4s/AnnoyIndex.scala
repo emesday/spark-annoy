@@ -266,12 +266,13 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
       i += 1
     }
 
+    val m = nodes.newNode
+    // TODO: Distribute
+    metric.createSplit(children, dim, random, m)
+
     val childrenIndices = Array.fill(2) {
       new ArrayBuffer[Int](indices.length)
     }
-
-    val m = nodes.newNode
-    metric.createSplit(children, dim, random, m)
 
     val vectorBuffer = new Array[Float](dim)
     val sideBuffer = new Array[Float](dim)
