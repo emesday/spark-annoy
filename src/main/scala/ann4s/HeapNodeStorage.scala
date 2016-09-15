@@ -22,7 +22,7 @@ class HeapNodeStorage(dim: Int, _size: Int, io: NodeStruct) extends NodeStorage(
     if (n > size) {
       val newsize = math.max(n, (size + 1) * reallocation_factor).toInt
       if (verbose) showUpdate("Reallocating to %d nodes\n", newsize)
-      val newBuffer: ByteBuffer = ByteBuffer.allocate(nodeSizeInBytes * newsize).order(ByteOrder.LITTLE_ENDIAN)
+      val newBuffer: ByteBuffer = ByteBuffer.allocateDirect(nodeSizeInBytes * newsize).order(ByteOrder.LITTLE_ENDIAN)
 
       underlying.rewind()
       newBuffer.put(underlying)

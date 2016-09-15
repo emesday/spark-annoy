@@ -29,11 +29,10 @@ class AnnoySpec extends FlatSpec with Matchers {
   }
 
   elapsed("saving / unload / load") {
-    val ids = dataset.zipWithIndex.map(_._2.toString)
-    i.save("annoy-index-scala", ids = ids)
+    i.save("annoy-index-scala")
   }
 
-  elapsed(s"qurery on ${i.getBufferType} by Item") {
+  elapsed(s"qurery on ${i.getBufferType}") {
     (0 until 100).foreach { _ =>
       dataset.zipWithIndex.foreach { case (_, j) =>
         val o = i.getNnsByItem(j, 3)
@@ -41,16 +40,6 @@ class AnnoySpec extends FlatSpec with Matchers {
       }
     }
   }
-
-  elapsed(s"qurery on ${i.getBufferType} by Id") {
-    (0 until 100).foreach { _ =>
-      dataset.zipWithIndex.foreach { case (_, j) =>
-        val o = i.getNnsById(j.toString, 3)
-        o.map(_._1) shouldBe trueNns(j)
-      }
-    }
-  }
-
 
   elapsed("load (useHeap = false)") {
     i.unload()

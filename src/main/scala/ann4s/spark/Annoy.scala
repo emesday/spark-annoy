@@ -2,7 +2,7 @@ package ann4s.spark
 
 import ann4s.{Angular, AnnoyIndex, Euclidean, FixRandom}
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.ml.proxy.{DefaultParamsReader, DefaultParamsWriter}
+import org.apache.spark.ml.SparkProxy.{DefaultParamsReader, DefaultParamsWriter}
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.util._
 import org.apache.spark.ml.{Estimator, Model}
@@ -50,12 +50,6 @@ trait AnnoyModelParams extends Params {
 
   def getDebug: Boolean = $(debug)
 
-  val verbose: BooleanParam = new BooleanParam(this, "verbose", "verbose")
-
-  setDefault(verbose, false)
-
-  def getVerbose: Boolean = $(verbose)
-
 }
 
 class AnnoyModel (
@@ -76,7 +70,6 @@ class AnnoyModel (
       new AnnoyIndex(dimension)
     }
 
-    _annoyIndexOnExecutor.verbose($(verbose))
     _annoyIndexOnExecutor.load(indexFile)
     _annoyIndexOnExecutor
   } else {
@@ -182,12 +175,6 @@ trait AnnoyParams extends AnnoyModelParams {
 
   def getNumTrees: Int = $(numTrees)
 
-  val ids: Param[Seq[String]] = new Param[Seq[String]](this, "ids", "ids coressponding to index")
-
-  setDefault(ids, Seq.empty[String])
-
-  def getIds: Seq[String] = $(ids)
-
 }
 
 class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyParams {
@@ -204,13 +191,9 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
 
   def setDebug(value: Boolean): this.type = set(debug, value)
 
-  def setVerbose(value: Boolean): this.type = set(verbose, value)
-
   def setNumTrees(value: Int): this.type = set(numTrees, value)
 
   def setMetric(value: String): this.type = set(metric, value)
-
-  def setIds(value: Seq[String]): this.type = set(ids, value)
 
   def this() = this(Identifiable.randomUID("annoy"))
 
@@ -231,8 +214,6 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
       new AnnoyIndex($(dimension), m)
     }
 
-    annoyIndex.verbose($(verbose))
-
     val items = dataset
       .select($(idCol), $(featuresCol))
       .map { case Row(id: Int, features: Seq[_]) =>
@@ -245,7 +226,7 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
       }
 
     annoyIndex.build($(numTrees))
-    annoyIndex.save(annoyOutputFile, ids = $(ids))
+    annoyIndex.save(annoyOutputFile)
     annoyIndex.unload()
 
     val model = new AnnoyModel(uid, $(dimension), annoyOutputFile).setParent(this)
@@ -264,3 +245,4 @@ class Annoy(override val uid: String) extends Estimator[AnnoyModel] with AnnoyPa
   }
 
 }
+

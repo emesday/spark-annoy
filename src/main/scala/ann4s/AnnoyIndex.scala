@@ -1,7 +1,6 @@
 package ann4s
 
 import java.io.FileOutputStream
-import java.nio.{ByteOrder, IntBuffer, ByteBuffer}
 
 import ann4s.Functions._
 
@@ -76,41 +75,12 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     if (verbose0) showUpdate("has %d nodes\n", nNodes)
   }
 
-  def save(filename: String, reload: Boolean = true, ids: Seq[String] = Seq.empty[String]): Boolean = {
+  def save(filename: String, reload: Boolean = true): Boolean = {
     nodes match {
       case heapNodes: HeapNodeStorage =>
         heapNodes.prepareToWrite()
-        val bf = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN)
-
         val fs = new FileOutputStream(filename).getChannel
         fs.write(heapNodes.underlying)
-        if (ids.nonEmpty) {
-          val last = fs.size().toInt
-
-          // last ~ last + 4 : number of ids
-          bf.rewind()
-          bf.putInt(ids.length)
-          bf.rewind()
-          fs.write(bf)
-
-          ids.foreach { id =>
-            val b = id.getBytes("UTF-8")
-            bf.rewind()
-            bf.putInt(b.length)
-            bf.rewind()
-            fs.write(bf)
-            fs.write(ByteBuffer.wrap(b))
-          }
-
-          // -8 ~ -4 : last offset
-          bf.rewind()
-          bf.putInt(last)
-          bf.rewind()
-          fs.write(bf)
-
-          // -4 ~ -0 : version
-          fs.write(ByteBuffer.wrap("v001".getBytes("UTF-8")))
-        }
         fs.close()
       case _ =>
     }
@@ -173,21 +143,12 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
 
   def getItem(item: Int): Array[Float] = getImmutableNode(item).getVector(new Array[Float](dim))
 
-  def getItemById(id: String): Array[Float] = {
-    nodes match {
-      case storage: MappedNodeStorage =>
-        getItem(storage.idToIndex(id))
-      case _ => throw new IllegalAccessError()
-    }
-  }
-
-  def getNnsById(id: String, n: Int, k: Int): Array[(Int, Float)] = getAllNns(getItemById(id), n, k)
-
-  def getNnsById(id: String, n: Int): Array[(Int, Float)] = getNnsById(id, n, -1)
-
   def getNnsByItem(item: Int, n: Int): Array[(Int, Float)] = getNnsByItem(item, n, -1)
 
-  def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = getAllNns(getItem(item), n, k)
+  def getNnsByItem(item: Int, n: Int, k: Int): Array[(Int, Float)] = {
+    val v = getImmutableNode(item).getVector(new Array[Float](dim))
+    getAllNns(v, n, k)
+  }
 
   def getNnsByVector(w: Array[Float], n: Int): Array[(Int, Float)] = getNnsByVector(w, n, -1)
 
