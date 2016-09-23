@@ -52,14 +52,14 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
   }
 
   def build(q: Int): Unit = {
+    require(q > 0)
     require(!loaded, "You can't build a loaded index")
 
     nNodes = nItems
-    while ((q != -1 || nNodes < nItems * 2) && (q == -1 || roots.length < q)) {
+    val indices = new ArrayBuffer(nItems) ++= (0 until nItems)
+    while (roots.length < q) {
       if (verbose0) showUpdate("pass %d...\n", roots.length)
-      val indices = new ArrayBuffer(nItems) ++= (0 until nItems)
-      val x = makeTree(indices)
-      roots += x
+      roots += makeTree(indices)
     }
 
     // Also, copy the roots into the last segment of the array
@@ -74,6 +74,70 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     nodes.flip()
 
     if (verbose0) showUpdate("has %d nodes\n", nNodes)
+  }
+
+  private def makeTree(indices: ArrayBuffer[Int]): Int = {
+    if (indices.length == 1)
+      return indices(0)
+
+    if (indices.length <= childrenCapacity) {
+      ensureSize(nNodes + 1)
+      val item = nNodes
+      nNodes += 1
+      val m = getMutableNode(item)
+      m.setNDescendants(indices.length)
+      m.setAllChildren(indices.toArray)
+      m.commit()
+      return item
+    }
+
+    val children = indices.flatMap(i => getNodeOption(i).map(i -> _))
+
+    val m = nodes.newNode
+    // TODO: Distribute
+    metric.createSplit(children.map(_._2), dim, random, m)
+
+    val childrenIndices = Array.fill(2) {
+      new ArrayBuffer[Int](indices.length)
+    }
+
+    val vectorBuffer = new Array[Float](dim)
+    val sideBuffer = new Array[Float](dim)
+    children.foreach { case (i, child) =>
+      val side = if (metric.side(m, child.getVector(vectorBuffer), random, sideBuffer)) 1 else 0
+      childrenIndices(side) += i
+    }
+
+    // If we didn't find a hyperplane, just randomize sides as a last option
+    while (childrenIndices(0).isEmpty || childrenIndices(1).isEmpty) {
+      if (verbose0 && indices.length > 100000)
+        showUpdate("Failed splitting %d items\n", indices.length)
+
+      childrenIndices(0).clear()
+      childrenIndices(1).clear()
+
+      // Set the vector to 0.0
+      m.setValue(0f)
+
+      indices.foreach { i =>
+        // Just randomize...
+        childrenIndices(if (random.flip()) 1 else 0) += i
+      }
+    }
+
+    val flip = if (childrenIndices(0).length > childrenIndices(1).length) 1 else 0
+
+    m.setNDescendants(indices.length)
+    m.setChildren(0 ^ flip, makeTree(childrenIndices(0 ^ flip)))
+    m.setChildren(1 ^ flip, makeTree(childrenIndices(1 ^ flip)))
+
+    ensureSize(nNodes + 1)
+    val item = nNodes
+    nNodes += 1
+    val n = getMutableNode(item)
+    n.copyFrom(m)
+    n.commit()
+    item
   }
 
   def save(filename: String, reload: Boolean = true): Boolean = {
@@ -222,9 +286,9 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
   private def getMutableNode(item: Int): Node =
     nodes(item, readonly = false)
 
-  private def getNodeOrNull(item: Int): Node = {
+  private def getNodeOption(item: Int): Option[Node] = {
     val n = nodes(item, readonly = true)
-    if (n.getNDescendants == 0) null else n
+    if (n.getNDescendants == 0) None else Some(n)
   }
 
   private def reinitialize(): Unit = {
@@ -239,88 +303,6 @@ class AnnoyIndex(dim: Int, metric: Metric, random: Random) {
     if (nodes == null)
       nodes = new HeapNodeStorage(dim, 0, metric)
     nodes.ensureSize(n, verbose0)
-  }
-
-  private def makeTree(indices: ArrayBuffer[Int]): Int = {
-    if (indices.length == 1)
-      return indices(0)
-
-    if (indices.length <= childrenCapacity) {
-      ensureSize(nNodes + 1)
-      val item = nNodes
-      nNodes += 1
-      val m = getMutableNode(item)
-      m.setNDescendants(indices.length)
-      m.setAllChildren(indices.toArray)
-      m.commit()
-      return item
-    }
-
-    val children = new ArrayBuffer[Node](indices.length)
-    var i = 0
-    while (i < indices.length) {
-      val j = indices(i)
-      val n = getNodeOrNull(j)
-      if (n != null)
-        children += n
-      i += 1
-    }
-
-    val m = nodes.newNode
-    // TODO: Distribute
-    metric.createSplit(children, dim, random, m)
-
-    val childrenIndices = Array.fill(2) {
-      new ArrayBuffer[Int](indices.length)
-    }
-
-    val vectorBuffer = new Array[Float](dim)
-    val sideBuffer = new Array[Float](dim)
-    i = 0
-    while (i < indices.length) {
-      val j = indices(i)
-      val n = getNodeOrNull(j)
-      if (n != null) {
-        val side = if (metric.side(m, n.getVector(vectorBuffer), random, sideBuffer)) 1 else 0
-        childrenIndices(side) += j
-      }
-      i += 1
-    }
-
-    // If we didn't find a hyperplane, just randomize sides as a last option
-    while (childrenIndices(0).isEmpty || childrenIndices(1).isEmpty) {
-      if (verbose0 && indices.length > 100000)
-        showUpdate("Failed splitting %d items\n", indices.length)
-
-      childrenIndices(0).clear()
-      childrenIndices(1).clear()
-
-      // Set the vector to 0.0
-      m.setValue(0f)
-
-      var i = 0
-      while (i < indices.length) {
-        val j = indices(i)
-        // Just randomize...
-        childrenIndices(if (random.flip()) 1 else 0) += j
-        i += 1
-      }
-    }
-
-    val flip = if (childrenIndices(0).length > childrenIndices(1).length) 1 else 0
-
-    m.setNDescendants(indices.length)
-
-    m.setChildren(0 ^ flip, makeTree(childrenIndices(0 ^ flip)))
-    m.setChildren(1 ^ flip, makeTree(childrenIndices(1 ^ flip)))
-
-    ensureSize(nNodes + 1)
-    val item = nNodes
-    nNodes += 1
-    val n = getMutableNode(item)
-    n.copyFrom(m)
-    n.commit()
-    item
   }
 
 }
