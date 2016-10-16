@@ -1,6 +1,6 @@
 name := "ann4s"
 
-version := "0.0.7"
+version := "0.1.0-SNAPSHOT"
 
 scalaVersion := "2.11.8"
 
