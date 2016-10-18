@@ -2,7 +2,7 @@ package ann4s
 
 import scala.collection.mutable.ArrayBuffer
 
-object Angular extends Metric with AngularNodeStruct {
+object Angular extends Metric {
 
   import Functions._
 
@@ -24,8 +24,8 @@ object Angular extends Metric with AngularNodeStruct {
     if (ppqq > 0) (2.0 - 2.0 * pq / Math.sqrt(ppqq)).toFloat else 2.0f
   }
 
-  override def margin(n: Node, sx: Array[Float], buffer: Array[Float]): Float = {
-    val sy = n.getVector(buffer)
+  override def margin(n: Array[Float], sx: Array[Float]): Float = {
+    val sy = n
     var dot: Float = 0
     var z = 0
     while (z < sx.length) {
@@ -35,8 +35,8 @@ object Angular extends Metric with AngularNodeStruct {
     dot
   }
 
-  override def side(n: Node, y: Array[Float], random: Random, buffer: Array[Float]): Boolean = {
-    val dot = margin(n, y, buffer)
+  override def side(n: Array[Float], y: Array[Float], random: Random): Boolean = {
+    val dot = margin(n, y)
     if (dot != Zero) {
       dot > 0
     } else {
@@ -44,10 +44,10 @@ object Angular extends Metric with AngularNodeStruct {
     }
   }
 
-  override def createSplit(nodes: ArrayBuffer[Node], dim: Int, rand: Random, n: Node): Unit = {
+  override def createSplit(nodes: ArrayBuffer[Int], dim: Int, rand: Random, helper: RocksDBHelper): Array[Float] = {
     val bestIv = new Array[Float](dim)
     val bestJv = new Array[Float](dim)
-    twoMeans(nodes, true, bestIv, bestJv, this, rand)
+    twoMeans(nodes, true, bestIv, bestJv, this, rand, helper)
 
     val result = bestIv
     var z = 0
@@ -57,7 +57,7 @@ object Angular extends Metric with AngularNodeStruct {
     }
 
     normalize(result)
-    n.setVector(result)
+    result
   }
 
   override def normalizeDistance(distance: Float): Float = {

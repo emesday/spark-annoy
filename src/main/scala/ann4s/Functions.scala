@@ -31,15 +31,16 @@ object Functions {
     }
   }
 
-  def twoMeans(nodes: ArrayBuffer[Node], cosine: Boolean, iv: Array[Float], jv: Array[Float], metric: Distance, rand: Random): Unit = {
+  def twoMeans(nodes: ArrayBuffer[Int], cosine: Boolean, iv: Array[Float], jv: Array[Float], metric: Metric, rand: Random, helper: RocksDBHelper): Unit = {
     val count = nodes.length
     val dim = iv.length
 
     val i = rand.index(count)
     var j = rand.index(count - 1)
     j += (if (j >= i) 1 else 0)
-    nodes(i).getVector(iv)
-    nodes(j).getVector(jv)
+
+    helper.getFeat(i, iv)
+    helper.getFeat(j, jv)
 
     if (cosine) {
       normalize(iv)
@@ -52,7 +53,8 @@ object Functions {
     val vectorBuffer = new Array[Float](dim)
     while (l < iterationSteps) {
       val k = rand.index(count)
-      val zz = nodes(k).getVector(vectorBuffer)
+      helper.getFeat(k, vectorBuffer)
+      val zz = vectorBuffer
       val di = ic * metric.distance(iv, zz)
       val dj = jc * metric.distance(jv, zz)
       val norm = if (cosine) getNorm(zz) else One
