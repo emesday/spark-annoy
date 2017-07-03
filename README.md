@@ -1,5 +1,4 @@
 [![Build Status](https://travis-ci.org/mskimm/ann4s.svg?branch=master)](https://travis-ci.org/mskimm/ann4s)
-[![Analytics](https://ga-beacon.appspot.com/UA-98128111-1/ann4s)](https://github.com/igrigorik/ga-beacon)
 
 # Ann4s
 A Scala Implementation of [Annoy](https://github.com/spotify/annoy) which searches nearest neighbors given query point. 
