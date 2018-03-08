@@ -1,107 +1,57 @@
 package ann4s
 
-import java.nio.ByteBuffer
+trait Node extends Serializable {
 
-case class Node(
-  dim: Int,
-  nodeSizeInBytes: Int,
-  underlying: ByteBuffer,
-  offsetInBytes: Int,
-  struct: NodeStruct,
-  readonly: Boolean = false) {
+  def toStructuredNode: StructuredNode
 
-  def getNDescendants: Int = {
-    underlying.position(offsetInBytes + struct.offsetDescendants)
-    underlying.getInt()
+}
+
+case class RootNode(location: Int) extends Node {
+  override def toStructuredNode: StructuredNode = {
+    StructuredNode(1, location, -1, Array.emptyDoubleArray, Array.emptyIntArray)
   }
+}
 
-  def getChildren(i: Int): Int = {
-    underlying.position(offsetInBytes + struct.offsetChildren + 4 * i)
-    underlying.getInt()
+case class HyperplaneNode(hyperplane: Vector, l: Int, r: Int) extends Node {
+  override def toStructuredNode: StructuredNode = {
+    StructuredNode(2, l, r, hyperplane.values, Array.emptyIntArray)
   }
+}
 
-  def getAllChildren(dst: Array[Int]): Array[Int] = {
-    underlying.position(offsetInBytes + struct.offsetChildren)
-    underlying.asIntBuffer().get(dst)
-    dst
+case class LeafNode(children: Array[Int]) extends Node {
+  override def toStructuredNode: StructuredNode = {
+    StructuredNode(3, -1, -1, Array.emptyDoubleArray, children)
   }
+}
 
-  def getVector(dst: Array[Float]): Array[Float] = {
-    underlying.position(offsetInBytes + struct.offsetValue)
-    var i = 0
-    while (i < dst.length) {
-      dst(i) = underlying.getFloat
-      i += 1
+case class FlipNode(l: Int, r: Int) extends Node {
+  override def toStructuredNode: StructuredNode = {
+    StructuredNode(4, l, r, Array.emptyDoubleArray, Array.emptyIntArray)
+  }
+}
+
+case class ItemNode(vector: Vector) extends Node {
+  override def toStructuredNode: StructuredNode = throw new UnsupportedOperationException
+}
+
+// TODO: UDT
+case class StructuredNode(nodeType: Int, l: Int, r: Int, hyperplane: Array[Double], children: Array[Int]) {
+
+  def toNode: Node = {
+    nodeType match {
+      case 1 => RootNode(l)
+      case 2 => HyperplaneNode(DVector(hyperplane), l, r)
+      case 3 => LeafNode(children)
+      case 4 => FlipNode(l, r)
     }
-    dst
-  }
-
-  def getA: Float = {
-    underlying.position(offsetInBytes + struct.offsetA)
-    underlying.getFloat()
-  }
-
-  def setValue(v: Float): Unit = {
-    require(!readonly)
-    underlying.position(offsetInBytes + struct.offsetValue)
-    var i = 0
-    while (i < dim) {
-      underlying.putFloat(v)
-      i += 1
-    }
-  }
-
-  def setNDescendants(nDescendants: Int): Unit = {
-    require(!readonly)
-    underlying.position(offsetInBytes + struct.offsetDescendants)
-    underlying.putInt(nDescendants)
-  }
-
-  def setChildren(i: Int, v: Int): Unit = {
-    require(!readonly)
-    underlying.position(offsetInBytes + struct.offsetChildren + 4 * i)
-    underlying.putInt(v)
-  }
-
-  def setAllChildren(indices: Array[Int]): Unit = {
-    require(!readonly)
-    underlying.position(offsetInBytes + struct.offsetChildren)
-    underlying.asIntBuffer().put(indices)
-  }
-
-  def setVector(v: Array[Float]): Unit = {
-    require(!readonly)
-    underlying.position(offsetInBytes + struct.offsetValue)
-    var i = 0
-    while (i < v.length) {
-      underlying.putFloat(v(i))
-      i += 1
-    }
-  }
-
-  def setA(a: Float): Unit = {
-    require(!readonly)
-    underlying.position(offsetInBytes + struct.offsetA)
-    underlying.putFloat(a)
-  }
-
-  def copyFrom(other: Node): Unit = {
-    require(!readonly)
-    _copy(other.underlying, other.offsetInBytes, underlying, offsetInBytes, nodeSizeInBytes)
-  }
-
-  private def _copy(src: ByteBuffer, srcOffsetInBytes: Int, dst: ByteBuffer, dstOffsetInBytes: Int, nodeSizeInBytes: Int): Unit = {
-    val dup = src.duplicate()
-    dup.position(srcOffsetInBytes)
-    dup.limit(srcOffsetInBytes + nodeSizeInBytes)
-
-    dst.position(dstOffsetInBytes)
-    dst.put(dup)
-  }
-
-  def commit() = {
-    require(!readonly)
-    struct.commit(underlying, offsetInBytes)
   }
 
 }
+
+case class StructuredNodes(nodes: IndexedSeq[StructuredNode]) {
+
+  def copyCosineForest(): Index = {
+    new Index(nodes.map(_.toNode))
+  }
+}
+

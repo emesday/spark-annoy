@@ -1,0 +1,4 @@
+*.bin
+*.hdf5
+train
+test
