@@ -93,7 +93,7 @@ libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.6"
     - If `1` is the major build step. this step is minor build step to handle streaming data.
     - uses this as Lambda architecture.
 4. Annoy Compatible Binary
-    - dumps index and items which compatible with Annoy
+    - dumps index and items which is compatible with Annoy
 
 # References
  - https://github.com/spotify/annoy : native implementation with serveral bindings like Python
