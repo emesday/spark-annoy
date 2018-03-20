@@ -29,8 +29,8 @@ class Index(val nodes: IndexedSeq[Node]) extends Serializable {
     while (!node.isInstanceOf[LeafNode] && !node.isInstanceOf[FlipNode]) {
       node match {
         case HyperplaneNode(hyperplane, l, r) =>
-          if (distance.side(hyperplane, vector) == Side.Left) nodeId = l
-          else nodeId = r
+          if (distance.side(hyperplane, vector) == Side.Left) nodeId = math.abs(l)
+          else nodeId = math.abs(r)
         case _ => assert(false)
       }
       node = nodes(nodeId)
@@ -131,15 +131,19 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
         }
       }
 
-      var l = -1
-      var r = -1
-      if (leftChildren.length <= rightChildren.length) {
-        l = recurse(leftChildren, nodes)
-        r = recurse(rightChildren, nodes)
+      var (l, r) = if (leftChildren.length <= rightChildren.length) {
+        val l = recurse(leftChildren, nodes)
+        val r = recurse(rightChildren, nodes)
+        (l, r)
       } else {
-        r = recurse(rightChildren, nodes)
-        l = recurse(leftChildren, nodes)
+        val r = recurse(rightChildren, nodes)
+        val l = recurse(leftChildren, nodes)
+        (l, r)
       }
+
+      // trick for check if the children of hyperplane node are LeafNode or not.
+      if (nodes(l).isInstanceOf[LeafNode]) l = -l
+      if (nodes(r).isInstanceOf[LeafNode]) r = -r
 
       if (failed) {
         nodes += FlipNode(l, r)

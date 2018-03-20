@@ -4,6 +4,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.nn.{Annoy, AnnoyModel}
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.StringType
 
 object DistributedBuilds {
 
@@ -25,8 +26,9 @@ object DistributedBuilds {
       .setNumTrees(2)
 
     val data = spark.read.parquet("dataset/train")
+    val withMetadata = data.withColumn("metadata", data("id") cast StringType)
 
-    val annModel = ann.fit(data)
+    val annModel = ann.fit(withMetadata)
 
     annModel.write.overwrite().save("exp/ann")
 
@@ -34,8 +36,11 @@ object DistributedBuilds {
     val path = new Path("exp/annoy", "spark.ann")
     val fs = FileSystem.get(spark.sparkContext.hadoopConfiguration)
     val os = fs.create(path, true, 1024*1024)
-    loaded.writeToAnnoyBinary(os)
+    loaded.writeAnnoyBinary(os)
     os.close()
+
+    loaded.writeSSTFiles("exp/rocksdb", 10)
+
 
     spark.stop()
   }

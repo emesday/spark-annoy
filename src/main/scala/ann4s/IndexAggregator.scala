@@ -22,11 +22,11 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
     val offset = nodes.length
     other foreach {
       case root: RootNode =>
-        roots += root.copy(root.location + offset)
+        roots += root.withOffset(offset)
       case hyperplane: HyperplaneNode =>
-        nodes += hyperplane.copy(l = hyperplane.l + offset, r = hyperplane.r + offset)
+        nodes += hyperplane.withOffset(offset)
       case flip: FlipNode =>
-        nodes += flip.copy(l = flip.l + offset, r = flip.r + offset)
+        nodes += flip.withOffset(offset)
       case leaf: LeafNode =>
         nodes += leaf
     }
@@ -53,20 +53,20 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
 
     nodes(subTreeId) = subTreeRoot match {
       case hyperplane: HyperplaneNode =>
-        hyperplane.copy(l = hyperplane.l + offset, r = hyperplane.r + offset)
+        hyperplane.withOffset(offset)
       case flip: FlipNode =>
-        flip.copy(l = flip.l + offset, r = flip.r + offset)
+        flip.withOffset(offset)
       case leaf: LeafNode =>
         leaf
     }
 
     other.dropRight(1) foreach {
       case root: RootNode =>
-        roots += root.copy(root.location + offset)
+        roots += root.withOffset(offset)
       case hyperplane: HyperplaneNode =>
-        nodes += hyperplane.copy(l = hyperplane.l + offset, r = hyperplane.r + offset)
+        nodes += hyperplane.withOffset(offset)
       case flip: FlipNode =>
-        nodes += flip.copy(l = flip.l + offset, r = flip.r + offset)
+        nodes += flip.withOffset(offset)
       case leaf: LeafNode =>
         nodes += leaf
     }

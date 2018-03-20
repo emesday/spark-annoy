@@ -49,20 +49,20 @@ object AnnoyUtil {
     nodes.nodes foreach {
       case RootNode(location) =>
         assert(numItemNodes > 0 && numHyperplaneNodes > 0 && numLeafNodes > 0)
-        nodes.nodes(location) match {
+        nodes.nodes(math.abs(location)) match {
           case HyperplaneNode(hyperplane, l, r) =>
             buffer.clear()
             buffer.putInt(numItemNodes)
-            buffer.putInt(numItemNodes + l)
-            buffer.putInt(numItemNodes + r)
+            buffer.putInt(numItemNodes + math.abs(l))
+            buffer.putInt(numItemNodes + math.abs(r))
             for (x <- hyperplane.floats) buffer.putFloat(x.toFloat)
             assert(buffer.remaining() == 0)
             bos.write(buffer.array())
           case FlipNode(l, r) =>
             buffer.clear()
             buffer.putInt(numItemNodes)
-            buffer.putInt(numItemNodes + l)
-            buffer.putInt(numItemNodes + r)
+            buffer.putInt(numItemNodes + math.abs(l))
+            buffer.putInt(numItemNodes + math.abs(r))
             for (i <- 0 until d) buffer.putFloat(0)
             assert(buffer.remaining() == 0)
             bos.write(buffer.array())
@@ -73,8 +73,8 @@ object AnnoyUtil {
         assert(numRootNodes == 0)
         buffer.clear()
         buffer.putInt(Int.MaxValue) // fake
-        buffer.putInt(numItemNodes + l)
-        buffer.putInt(numItemNodes + r)
+        buffer.putInt(numItemNodes + math.abs(l))
+        buffer.putInt(numItemNodes + math.abs(r))
         for (x <- hyperplane.floats) buffer.putFloat(x.toFloat)
         assert(buffer.remaining() == 0)
         bos.write(buffer.array())
@@ -91,8 +91,8 @@ object AnnoyUtil {
       case FlipNode(l, r) =>
         buffer.clear()
         buffer.putInt(numItemNodes)
-        buffer.putInt(numItemNodes + l)
-        buffer.putInt(numItemNodes + r)
+        buffer.putInt(numItemNodes + math.abs(l))
+        buffer.putInt(numItemNodes + math.abs(r))
         for (i <- 0 until d) buffer.putFloat(0)
         assert(buffer.remaining() == 0)
         bos.write(buffer.array())

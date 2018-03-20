@@ -3,7 +3,8 @@ package org.apache.spark.ml.nn
 import java.io.OutputStream
 
 import ann4s._
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.SerializableWritable
 import org.apache.spark.ml._
 import org.apache.spark.ml.linalg.{VectorUDT => MlVectorUDT}
 import org.apache.spark.ml.param._
@@ -15,6 +16,7 @@ import org.apache.spark.storage.StorageLevel
 import org.json4s.DefaultFormats
 import org.json4s.JsonDSL._
 import org.apache.spark.ml.linalg.{Vector => MlVector}
+import org.rocksdb.{EnvOptions, Options, SstFileWriter}
 
 import scala.util.Random
 
@@ -23,6 +25,10 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
   final val idCol: Param[String] = new Param[String](this, "idCol", "id column name")
 
   def getIdCol: String = $(idCol)
+
+  final val metadataCol: Param[String] = new Param[String](this, "metadataCol", "metadata column name")
+
+  def getMetadataCol: String = $(metadataCol)
 
   final val numTrees: IntParam = new IntParam(this, "numTrees", "number of trees to build")
 
@@ -39,68 +45,20 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
   }
 }
 
-trait ANNModelParams extends Params {
-
-  final val trainVal: Param[String] = new Param[String](this, "trainVal", "train value")
-
-  def getTrainVal: String = $(trainVal)
-
-  final val testVal: Param[String] = new Param[String](this, "testVal", "test value")
-
-  def getTestVal: String = $(testVal)
-
-  final val targetCol: Param[String] = new Param[String](this, "targetCol", "target column name")
-
-  def getTargetCol: String = $(targetCol)
-
-  final val k: Param[Int] = new IntParam(this, "k", "number of neighbors to query")
-
-  def getK: Int = $(k)
-
-}
+trait ANNModelParams extends Params with ANNParams
 
 class AnnoyModel private[ml] (
   override val uid: String,
   val d: Int,
   val index: Index,
   @transient val items: DataFrame
-) extends Model[AnnoyModel] with ANNParams with ANNModelParams with MLWritable {
+) extends Model[AnnoyModel] with ANNModelParams with MLWritable {
 
   override def copy(extra: ParamMap): AnnoyModel = {
     copyValues(new AnnoyModel(uid, d, index, items), extra)
   }
 
-  def setK(value: Int): this.type = set(k, value)
-
-  override def transform(dataset: Dataset[_]): DataFrame = {
-    /*
-    val sparkSession = dataset.sparkSession
-    import sparkSession.implicits._
-
-    transformSchema(dataset.schema, logging = true)
-
-    val instance = dataset.select(col($(idCol)), col($(featuresCol))).rdd.map {
-      case Row(id: Int, point: Vector) => IdVectorWithNorm(id, point)
-    }
-
-    val bcIndex = sparkSession.sparkContext.broadcast(index)
-    val candidates = instance.map { point =>
-      point -> bcIndex.value.getCandidates(point)
-    }
-
-    import org.apache.spark.mllib.rdd.MLPairRDDFunctions._
-
-    val nns = candidates.cartesian(items.as[IdVectorWithNorm].rdd)
-      .filter { case ((_, c), t) => c.contains(t.id) }
-      .map { case ((point, _), t) =>
-        point.id -> (t.id, CosineTree.cosineDistance(point, t))
-      }
-      .topByKey(100)(Ordering.by(-_._2))
-
-    nns.toDF("id", "nns")
-    */
-    ???
-  }
+  override def transform(dataset: Dataset[_]): DataFrame = ???
 
   override def transformSchema(schema: StructType): StructType = {
     validateAndTransformSchema(schema)
@@ -108,11 +66,44 @@ class AnnoyModel private[ml] (
 
   override def write: MLWriter = new AnnoyModel.ANNModelWriter(this)
 
-  def writeToAnnoyBinary(os: OutputStream): Unit = {
+  def writeAnnoyBinary(os: OutputStream): Unit = {
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
       case Row(id: Int, features: MlVector) => IdVector(id, Vector64(features.toArray))
     }
     AnnoyUtil.dump(vectorWithIds.sortBy(_.id).collect(), index.getNodes, os)
+  }
+
+  def writeSSTFiles(path: String, numPartitions: Int = 0): Unit = {
+    /*
+    val rdd = items.select($(idCol), $(featuresCol), $(metadataCol)).rdd.map {
+      case Row(id: Int, features: MlVector, metadata: String) => (id, features, metadata)
+    }
+
+    val sorted = if (numPartitions > 0) {
+      rdd.sortBy(_._1, ascending = true, numPartitions)
+    } else {
+      rdd.sortBy(_._1)
+    }
+
+    val sc = items.sparkSession.sparkContext
+    val bc = sc.broadcast(new SerializableWritable(sc.hadoopConfiguration))
+
+    sorted.mapPartitionsWithIndex { (partitionIndex, it) =>
+
+      val fs = FileSystem.get(bc.value.value)
+
+      val itemSstFile = f"i_$partitionIndex%03d.sst"
+
+      val envOptions = new EnvOptions()
+      val options = new Options()
+      val sstFileWriter = new SstFileWriter(envOptions, options)
+
+      it foreach { case (id, features, metadata) =>
+
+      }
+    }
+    */
+    ???
   }
 
 }
@@ -180,19 +171,21 @@ object AnnoyModel extends MLReadable[AnnoyModel] {
 class Annoy(override val uid: String)
   extends Estimator[AnnoyModel] with ANNParams with DefaultParamsWritable {
 
-  setDefault(idCol -> "id", featuresCol -> "features", numTrees -> 1, fraction -> 0.01)
+  setDefault(idCol -> "id", featuresCol -> "features", metadataCol -> "metadata", numTrees -> 1, fraction -> 0.01)
 
   override def copy(extra: ParamMap): Annoy = defaultCopy(extra)
 
   def this() = this(Identifiable.randomUID("ann"))
+
+  def setIdCol(value: String): this.type = set(idCol, value)
+
+  def setMetadataCol(value: String): this.type = set(metadataCol, value)
 
   def setNumTrees(value: Int): this.type = set(numTrees, value)
 
   def setFraction(value: Double): this.type = set(fraction, value)
 
   override def fit(dataset: Dataset[_]): AnnoyModel = {
-    val sparkSession = dataset.sparkSession
-
     transformSchema(dataset.schema, logging = true)
 
     val handlePersistence = dataset.storageLevel == StorageLevel.NONE
@@ -244,7 +237,8 @@ class Annoy(override val uid: String)
 
     val index = globalAggregator.result()
 
-    val model = copyValues(new AnnoyModel(uid, d, index, dataset.select($(idCol), $(featuresCol)))).setParent(this)
+    val model = copyValues(
+      new AnnoyModel(uid, d, index, dataset.select($(idCol), $(featuresCol), $(metadataCol)))).setParent(this)
     instr.logSuccess(model)
     if (handlePersistence) {
       instances.unpersist()
