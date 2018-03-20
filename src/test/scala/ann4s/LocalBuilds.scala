@@ -26,7 +26,7 @@ object LocalBuilds {
       }
 
       val copied = ar.map(_.toDouble)
-      val cv = DVector(copied)
+      val cv = Vector64(copied)
       items += IdVectorWithNorm(id, cv)
       id += 1
       if ((id % 10000) == 0)

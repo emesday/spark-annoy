@@ -34,13 +34,6 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
     this
   }
 
-  def mergeSubTrees(it: Iterator[(Int, IndexedSeq[StructuredNode])]): this.type = {
-    it.foreach { case (subTreeId, subTreeNodes) =>
-      mergeSubTree(subTreeId, subTreeNodes.map(_.toNode))
-    }
-    this
-  }
-
   def mergeSubTree(subTreeId: Int, other: IndexedSeq[Node]): this.type = {
     val subTreeRoot = other.last match {
       case RootNode(location) => other(location)

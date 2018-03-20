@@ -7,6 +7,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.tools.nsc.interpreter.OutputStream
 import scala.util.Random
 
+case class Nodes(nodes: IndexedSeq[Node]) {
+  def toIndex: Index = new Index(nodes)
+}
+
 class Index(val nodes: IndexedSeq[Node]) extends Serializable {
 
   val roots: Array[RootNode] = {
@@ -48,7 +52,7 @@ class Index(val nodes: IndexedSeq[Node]) extends Serializable {
       buffer.putInt(1)
       buffer.putFloat(nrm2 * nrm2) // Annoy stores nrm2^2
       buffer.putInt(0)
-      for (x <- v.values) buffer.putFloat(x.toFloat)
+      for (x <- v.floats) buffer.putFloat(x.toFloat)
       assert(buffer.remaining() == 0)
       bos.write(buffer.array())
       i += 1
@@ -70,7 +74,7 @@ class Index(val nodes: IndexedSeq[Node]) extends Serializable {
             buffer.putInt(numItemNodes)
             buffer.putInt(numItemNodes + l)
             buffer.putInt(numItemNodes + r)
-            for (x <- hyperplane.values) buffer.putFloat(x.toFloat)
+            for (x <- hyperplane.floats) buffer.putFloat(x.toFloat)
             assert(buffer.remaining() == 0)
             bos.write(buffer.array())
           case FlipNode(l, r) =>
@@ -90,7 +94,7 @@ class Index(val nodes: IndexedSeq[Node]) extends Serializable {
         buffer.putInt(Int.MaxValue) // fake
         buffer.putInt(numItemNodes + l)
         buffer.putInt(numItemNodes + r)
-        for (x <- hyperplane.values) buffer.putFloat(x.toFloat)
+        for (x <- hyperplane.floats) buffer.putFloat(x.toFloat)
         assert(buffer.remaining() == 0)
         bos.write(buffer.array())
         numHyperplaneNodes += 1
@@ -117,9 +121,7 @@ class Index(val nodes: IndexedSeq[Node]) extends Serializable {
     println(numItemNodes, numRootNodes, numHyperplaneNodes, numLeafNodes)
   }
 
-  def toStructuredNodes: StructuredNodes = {
-    StructuredNodes(nodes.map(_.toStructuredNode))
-  }
+  def getNodes: Nodes = Nodes(nodes)
 
   def getCandidates(v: IdVectorWithNorm): Array[Int] = ???
 

@@ -5,14 +5,14 @@ import org.scalatest._
 
 class IndexAggregatorTest extends FunSuite {
 
-  val hyperplane = DVector(Array.emptyDoubleArray)
+  val hyperplane = Vector64(Array.emptyDoubleArray)
   val lLeaf = Array(0, 1)
   val rLeaf = Array(2, 3)
   val items = Array(
-    IdVector(0, DVector(Array(0.1))),
-    IdVector(1, DVector(Array(0.2))),
-    IdVector(2, DVector(Array(0.3))),
-    IdVector(3, DVector(Array(0.4))))
+    IdVector(0, Vector64(Array(0.1))),
+    IdVector(1, Vector64(Array(0.2))),
+    IdVector(2, Vector64(Array(0.3))),
+    IdVector(3, Vector64(Array(0.4))))
 
   def getAggregatedResult: IndexAggregator = {
     val aggregator = new IndexAggregator

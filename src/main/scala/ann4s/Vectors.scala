@@ -1,23 +1,62 @@
 package ann4s
 
+import java.util
+
 import com.github.fommil.netlib.BLAS
 
-trait Vector {
+trait Vector extends Serializable {
 
   def size: Int
 
-  def values: Array[Double]
+  def floats: Array[Float]
+
+  override def equals(other: Any): Boolean = {
+    other match {
+      case o: Vector =>
+        if (this.size != o.size) return false
+        (this, o) match {
+          case (Vector0, Vector0) => true
+          case (a: Vector8, b: Vector8) =>
+            if (a.w != b.w) false
+            else if (a.b != b.b) false
+            else util.Arrays.equals(a.vector, b.vector)
+          case (a: Vector16, b: Vector16) =>
+            util.Arrays.equals(a.vector, b.vector)
+          case (a: Vector32, b: Vector32) =>
+            util.Arrays.equals(a.vector, b.vector)
+          case (a: Vector64, b: Vector64) =>
+            util.Arrays.equals(a.vector, b.vector)
+          case (_, _) => false
+        }
+      case _ => false
+    }
+  }
 
 }
 
-case class SVector(vector: Array[Float]) extends Vector {
-  override def size: Int = vector.length
-  override def values: Array[Double] = vector.map(_.toDouble) // TODO
+case object Vector0 extends Vector {
+  override def size: Int = 0
+  override def floats: Array[Float] = Array.emptyFloatArray
 }
 
-case class DVector(vector: Array[Double]) extends Vector {
+case class Vector8(vector: Array[Byte], w: Float, b: Float) extends Vector {
   override def size: Int = vector.length
-  override def values: Array[Double] = vector
+  override def floats: Array[Float] = ???
+}
+
+case class Vector16(vector: Array[Short]) extends Vector {
+  override def size: Int = vector.length
+  override def floats: Array[Float] = ???
+}
+
+case class Vector32(vector: Array[Float]) extends Vector {
+  override def size: Int = vector.length
+  override def floats: Array[Float] = vector
+}
+
+case class Vector64(vector: Array[Double]) extends Vector {
+  override def size: Int = vector.length
+  override def floats: Array[Float] = vector.map(_.toFloat)
 }
 
 object Vectors {
@@ -26,36 +65,36 @@ object Vectors {
 
   def scal(da: Double, x: Vector): Unit = {
     x match {
-      case SVector(sx) =>
+      case Vector32(sx) =>
         blas.sscal(sx.length, da.toFloat, sx, 1)
-      case DVector(dx) =>
+      case Vector64(dx) =>
         blas.dscal(dx.length, da, dx, 1)
     }
   }
 
   def axpy(da: Double, x: Vector, y: Vector): Unit = {
     (x, y) match {
-      case (SVector(sx), SVector(sy)) =>
+      case (Vector32(sx), Vector32(sy)) =>
         blas.saxpy(sx.length, da.toFloat, sx, 1, sy, 1)
-      case (DVector(dx), DVector(dy)) =>
+      case (Vector64(dx), Vector64(dy)) =>
         blas.daxpy(dx.length, da, dx, 1, dy, 1)
     }
   }
 
   def nrm2(x: Vector): Double  = {
     x match {
-      case SVector(sx) =>
+      case Vector32(sx) =>
         blas.snrm2(sx.length, sx, 1).toDouble
-      case DVector(dx) =>
+      case Vector64(dx) =>
         blas.dnrm2(dx.length, dx, 1)
     }
   }
 
   def dot(x: Vector, y: Vector): Double = {
     (x, y) match {
-      case (SVector(sx), SVector(sy)) =>
+      case (Vector32(sx), Vector32(sy)) =>
         blas.sdot(sx.length, sx, 1, sy, 1).toDouble
-      case (DVector(dx), DVector(dy)) =>
+      case (Vector64(dx), Vector64(dy)) =>
         blas.ddot(dx.length, dx, 1, dy, 1)
     }
   }
@@ -109,12 +148,12 @@ case class IdVectorWithNorm(id: Int, vector: Vector, norm: Double)
   def copyVectorWithNorm: VectorWithNorm = {
     val nrm2 = Vectors.nrm2(vector)
     vector match {
-      case SVector(sx) =>
-        val copied = SVector(sx.clone())
+      case Vector32(sx) =>
+        val copied = Vector32(sx.clone())
         Vectors.scal(1 / nrm2, copied)
         VectorWithNorm(copied, 1)
-      case DVector(dx) =>
-        val copied = DVector(dx.clone())
+      case Vector64(dx) =>
+        val copied = Vector64(dx.clone())
         Vectors.scal(1 / nrm2, copied)
         VectorWithNorm(copied, 1)
     }
@@ -131,9 +170,9 @@ object IdVectorWithNorm {
     IdVectorWithNorm(id, vector, Vectors.nrm2(vector))
 
   def apply(id: Int, vector: Array[Float]): IdVectorWithNorm =
-    IdVectorWithNorm(id, SVector(vector))
+    IdVectorWithNorm(id, Vector32(vector))
 
   def apply(id: Int, vector: Array[Double]): IdVectorWithNorm =
-    IdVectorWithNorm(id, DVector(vector))
+    IdVectorWithNorm(id, Vector64(vector))
 
 }

@@ -5,7 +5,7 @@ import java.io.OutputStream
 import ann4s._
 import org.apache.hadoop.fs.Path
 import org.apache.spark.ml._
-import org.apache.spark.ml.linalg.VectorUDT
+import org.apache.spark.ml.linalg.{VectorUDT => MlVectorUDT}
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.param.shared.{HasFeaturesCol, HasSeed}
 import org.apache.spark.ml.util._
@@ -34,7 +34,7 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
 
   protected def validateAndTransformSchema(schema: StructType): StructType = {
     SchemaUtils.checkColumnType(schema, $(idCol), IntegerType)
-    SchemaUtils.checkColumnType(schema, $(featuresCol), new VectorUDT)
+    SchemaUtils.checkColumnType(schema, $(featuresCol), new MlVectorUDT)
     schema
   }
 }
@@ -64,8 +64,7 @@ class AnnoyModel private[ml] (
   val d: Int,
   val index: Index,
   @transient val items: DataFrame
-)
-  extends Model[AnnoyModel] with ANNParams with ANNModelParams with MLWritable {
+) extends Model[AnnoyModel] with ANNParams with ANNModelParams with MLWritable {
 
   override def copy(extra: ParamMap): AnnoyModel = {
     copyValues(new AnnoyModel(uid, d, index, items), extra)
@@ -111,7 +110,7 @@ class AnnoyModel private[ml] (
 
   def writeToAnnoyBinary(os: OutputStream): Unit = {
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
-      case Row(id: Int, features: MlVector) => IdVector(id, DVector(features.toArray))
+      case Row(id: Int, features: MlVector) => IdVector(id, Vector64(features.toArray))
     }
     index.writeAnnoyBinary(vectorWithIds.sortBy(_.id).collect(), os)
   }
@@ -120,6 +119,21 @@ class AnnoyModel private[ml] (
 
 object AnnoyModel extends MLReadable[AnnoyModel] {
 
+  def registerUDT(): Unit = {
+    UDTRegistration.register("ann4s.Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.EmptyVector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Fixed8Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Fixed16Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Float32Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Float64Vector", "org.apache.spark.ml.nn.VectorUDT")
+
+    UDTRegistration.register("ann4s.Node", "org.apache.spark.ml.nn.NodeUDT")
+    UDTRegistration.register("ann4s.RootNode", "org.apache.spark.ml.nn.NodeUDT")
+    UDTRegistration.register("ann4s.HyperplaneNode", "org.apache.spark.ml.nn.NodeUDT")
+    UDTRegistration.register("ann4s.LeafNode", "org.apache.spark.ml.nn.NodeUDT")
+    UDTRegistration.register("ann4s.FlipNode", "org.apache.spark.ml.nn.NodeUDT")
+  }
+
   override def read: MLReader[AnnoyModel] = new ANNModelReader
 
   override def load(path: String): AnnoyModel = super.load(path)
@@ -127,11 +141,13 @@ object AnnoyModel extends MLReadable[AnnoyModel] {
   private[AnnoyModel] class ANNModelWriter(instance: AnnoyModel) extends MLWriter {
 
     override protected def saveImpl(path: String): Unit = {
+      registerUDT()
+
       val extraMetadata = "d" -> instance.d
       DefaultParamsWriter.saveMetadata(instance, path, sc, Some(extraMetadata))
       val indexPath = new Path(path, "index").toString
       val itemPath = new Path(path, "items").toString
-      val data = instance.index.toStructuredNodes
+      val data = instance.index.getNodes
       sparkSession.createDataFrame(Array(data)).repartition(1).write.parquet(indexPath)
       instance.items.write.parquet(itemPath)
     }
@@ -143,6 +159,8 @@ object AnnoyModel extends MLReadable[AnnoyModel] {
     private val className = classOf[AnnoyModel].getName
 
     override def load(path: String): AnnoyModel = {
+      registerUDT()
+
       val sparkSession = super.sparkSession
       import sparkSession.implicits._
       val metadata = DefaultParamsReader.loadMetadata(path, sc, className)
@@ -150,9 +168,9 @@ object AnnoyModel extends MLReadable[AnnoyModel] {
       val d = (metadata.metadata \ "d").extract[Int]
       val treePath = new Path(path, "index").toString
       val itemPath = new Path(path, "items").toString
-      val forest = sparkSession.read.parquet(treePath).as[StructuredNodes].head()
+      val forest = sparkSession.read.parquet(treePath).as[Nodes].head()
       val items = sparkSession.read.parquet(itemPath)
-      val model = new AnnoyModel(metadata.uid, d, forest.copyCosineForest(), items)
+      val model = new AnnoyModel(metadata.uid, d, forest.toIndex, items)
       DefaultParamsReader.getAndSetParams(model, metadata)
       model
     }
