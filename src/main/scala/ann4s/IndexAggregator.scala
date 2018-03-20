@@ -29,8 +29,6 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
         nodes += flip.copy(l = flip.l + offset, r = flip.r + offset)
       case leaf: LeafNode =>
         nodes += leaf
-      case _: ItemNode =>
-        assert(assertion = false, "item nodes could not be aggregated")
     }
     nodes ++= roots
     this
@@ -78,8 +76,6 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
         nodes += flip.copy(l = flip.l + offset, r = flip.r + offset)
       case leaf: LeafNode =>
         nodes += leaf
-      case _: ItemNode =>
-        assert(assertion = false, "item nodes could not be aggregated")
     }
     nodes ++= roots
     this

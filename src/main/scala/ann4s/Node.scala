@@ -30,10 +30,6 @@ case class FlipNode(l: Int, r: Int) extends Node {
   }
 }
 
-case class ItemNode(vector: Vector) extends Node {
-  override def toStructuredNode: StructuredNode = throw new UnsupportedOperationException
-}
-
 // TODO: UDT
 case class StructuredNode(nodeType: Int, l: Int, r: Int, hyperplane: Array[Double], children: Array[Int]) {
 
