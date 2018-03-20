@@ -82,6 +82,18 @@ resolvers += Resolver.bintrayRepo("mskimm", "maven")
 libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.6"
 ```
  - `0.0.6` is built with Apache Spark 1.6.2
+ 
+# Objective
+
+1. Distributed Index Builds
+    - handles 100M or more vectors
+2. Queries are performed on persistence layers like HBase and RocksDB.
+    - persist Index and Items in this layer
+3. CRUD supports
+    - If `1` is the major build step. this step is minor build step to handle streaming data.
+    - uses this as Lambda architecture.
+4. Annoy Compatible Binary
+    - dumps index and items which compatible with Annoy
 
 # References
  - https://github.com/spotify/annoy : native implementation with serveral bindings like Python
