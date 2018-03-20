@@ -7,9 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.tools.nsc.interpreter.OutputStream
 import scala.util.Random
 
-class Index(val nodes: IndexedSeq[Node], val withItems: Boolean) extends Serializable {
-
-  def this(nodes: IndexedSeq[Node]) = this(nodes, false)
+class Index(val nodes: IndexedSeq[Node]) extends Serializable {
 
   val roots: Array[RootNode] = {
     val roots = new ArrayBuffer[RootNode]()
@@ -21,80 +19,98 @@ class Index(val nodes: IndexedSeq[Node], val withItems: Boolean) extends Seriali
     roots.reverse.toArray
   }
 
-  def writeAnnoyBinary(d: Int, os: OutputStream): Unit = {
-    assert(withItems, "index should include items for Annoy")
 
+  def writeAnnoyBinary[T <: HasId with HasVector](sortedItems: IndexedSeq[T], os: OutputStream): Unit = {
+
+    val d = sortedItems.head.getVector.size
     val bos = new BufferedOutputStream(os, 1024 * 1024)
-
-    val bf = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
+    val buffer = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
+    val hole =  new Array[Byte](12 + d * 4)
 
     println(s"number of nodes ${nodes.length}")
 
-    var numItemNodes = 0
+    var numHoles = 0
+    var i = 0
+    var lastId = -1
+    for (item <- sortedItems) {
+      val id = item.getId
+      val v = item.getVector
+
+      assert(lastId == -1 || lastId < id, "items are not sorted")
+
+      while (i < id) {
+        bos.write(hole)
+        numHoles += 1
+        i += 1
+      }
+      val nrm2 = Vectors.nrm2(v).toFloat
+      buffer.clear()
+      buffer.putInt(1)
+      buffer.putFloat(nrm2 * nrm2) // Annoy stores nrm2^2
+      buffer.putInt(0)
+      for (x <- v.values) buffer.putFloat(x.toFloat)
+      assert(buffer.remaining() == 0)
+      bos.write(buffer.array())
+      i += 1
+      lastId = id
+    }
+
+    println(s"number of holes: $numHoles")
+
+    val numItemNodes = i
     var numRootNodes = 0
     var numHyperplaneNodes = 0
     var numLeafNodes = 0
     nodes foreach {
-      case ItemNode(vector) =>
-        assert(numRootNodes == 0 && numHyperplaneNodes == 0 && numLeafNodes == 0)
-        val nrm2 = Vectors.nrm2(vector).toFloat
-        bf.clear()
-        bf.putInt(1)
-        bf.putFloat(nrm2 * nrm2) // Annoy stores nrm2^2
-        bf.putInt(0)
-        for (x <- vector.values) bf.putFloat(x.toFloat)
-        assert(bf.remaining() == 0)
-        bos.write(bf.array())
-        numItemNodes += 1
       case RootNode(location) =>
         assert(numItemNodes > 0 && numHyperplaneNodes > 0 && numLeafNodes > 0)
         nodes(location) match {
           case HyperplaneNode(hyperplane, l, r) =>
-            bf.clear()
-            bf.putInt(numItemNodes)
-            bf.putInt(l)
-            bf.putInt(r)
-            for (x <- hyperplane.values) bf.putFloat(x.toFloat)
-            assert(bf.remaining() == 0)
-            bos.write(bf.array())
+            buffer.clear()
+            buffer.putInt(numItemNodes)
+            buffer.putInt(numItemNodes + l)
+            buffer.putInt(numItemNodes + r)
+            for (x <- hyperplane.values) buffer.putFloat(x.toFloat)
+            assert(buffer.remaining() == 0)
+            bos.write(buffer.array())
           case FlipNode(l, r) =>
-            bf.clear()
-            bf.putInt(numItemNodes)
-            bf.putInt(l)
-            bf.putInt(r)
-            for (i <- 0 until d) bf.putFloat(0)
-            assert(bf.remaining() == 0)
-            bos.write(bf.array())
+            buffer.clear()
+            buffer.putInt(numItemNodes)
+            buffer.putInt(numItemNodes + l)
+            buffer.putInt(numItemNodes + r)
+            for (i <- 0 until d) buffer.putFloat(0)
+            assert(buffer.remaining() == 0)
+            bos.write(buffer.array())
           case _ => assert(false)
         }
         numRootNodes += 1
       case HyperplaneNode(hyperplane, l, r) =>
         assert(numRootNodes == 0)
-        bf.clear()
-        bf.putInt(Int.MaxValue) // fake
-        bf.putInt(l)
-        bf.putInt(r)
-        for (x <- hyperplane.values) bf.putFloat(x.toFloat)
-        assert(bf.remaining() == 0)
-        bos.write(bf.array())
+        buffer.clear()
+        buffer.putInt(Int.MaxValue) // fake
+        buffer.putInt(numItemNodes + l)
+        buffer.putInt(numItemNodes + r)
+        for (x <- hyperplane.values) buffer.putFloat(x.toFloat)
+        assert(buffer.remaining() == 0)
+        bos.write(buffer.array())
         numHyperplaneNodes += 1
       case LeafNode(children: Array[Int]) =>
         assert(numRootNodes == 0)
-        bf.clear()
-        bf.putInt(children.length)
-        children foreach bf.putInt // if exceed, exception raised
-        while (bf.remaining() > 0) bf.putInt(0) // fill 0s for safety
-        assert(bf.remaining() == 0)
-        bos.write(bf.array())
+        buffer.clear()
+        buffer.putInt(children.length)
+        children foreach buffer.putInt // if exceed, exception raised
+        while (buffer.remaining() > 0) buffer.putInt(0) // fill 0s for safety
+        assert(buffer.remaining() == 0)
+        bos.write(buffer.array())
         numLeafNodes += 1
       case FlipNode(l, r) =>
-        bf.clear()
-        bf.putInt(numItemNodes)
-        bf.putInt(l)
-        bf.putInt(r)
-        for (i <- 0 until d) bf.putFloat(0)
-        assert(bf.remaining() == 0)
-        bos.write(bf.array())
+        buffer.clear()
+        buffer.putInt(numItemNodes)
+        buffer.putInt(numItemNodes + l)
+        buffer.putInt(numItemNodes + r)
+        for (i <- 0 until d) buffer.putFloat(0)
+        assert(buffer.remaining() == 0)
+        bos.write(buffer.array())
         numHyperplaneNodes += 1
     }
     bos.flush()

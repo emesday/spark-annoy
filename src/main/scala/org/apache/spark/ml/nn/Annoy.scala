@@ -113,11 +113,7 @@ class AnnoyModel private[ml] (
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
       case Row(id: Int, features: MlVector) => IdVector(id, DVector(features.toArray))
     }
-    val indexWithItems = new IndexAggregator()
-      .prependItems(vectorWithIds.collect())
-      .aggregate(index.nodes)
-      .result()
-    indexWithItems.writeAnnoyBinary(d, os)
+    index.writeAnnoyBinary(vectorWithIds.sortBy(_.id).collect(), os)
   }
 
 }

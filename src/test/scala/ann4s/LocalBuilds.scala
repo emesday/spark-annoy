@@ -69,12 +69,12 @@ object LocalBuilds {
       globalAggregator.aggregate(localAggregator.nodes)
     }
 
-    val index = globalAggregator.prependItems(items).result()
+    val index = globalAggregator.result()
 
     val directory = new File("exp/annoy")
     directory.mkdirs()
     val os = new FileOutputStream(new File(directory, "local.ann"))
-    index.writeAnnoyBinary(d, os)
+    index.writeAnnoyBinary(items, os)
     os.close()
   }
 

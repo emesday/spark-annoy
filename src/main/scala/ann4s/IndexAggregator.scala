@@ -6,8 +6,6 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
 
   def this() = this(new ArrayBuffer[Node]())
 
-  var withItems = false
-
   def aggregate(other: IndexAggregator): this.type = aggregate(other.nodes)
 
   def aggregate(other: IndexedSeq[Node]): this.type = {
@@ -36,18 +34,6 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
     }
     nodes ++= roots
     this
-  }
-
-  def prependItems[T <: HasId with HasVector](items: IndexedSeq[T]): this.type = {
-    assert(!withItems, "items already prepended")
-    withItems = true
-    val itemSize = items.reduceLeft((x, y) => if (x.getId > y.getId) x else y).getId + 1
-    val itemNodes = new Array[Node](itemSize)
-    for (item <- items) itemNodes(item.getId) = ItemNode(item.getVector)
-    val oldNodes = nodes
-    nodes = new ArrayBuffer[Node](itemSize + oldNodes.length)
-    nodes ++= itemNodes
-    aggregate(oldNodes)
   }
 
   def mergeSubTrees(it: Iterator[(Int, IndexedSeq[StructuredNode])]): this.type = {
@@ -99,6 +85,6 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
     this
   }
 
-  def result(): Index = new Index(nodes, withItems)
+  def result(): Index = new Index(nodes)
 
 }

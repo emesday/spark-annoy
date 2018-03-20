@@ -38,32 +38,6 @@ class IndexAggregatorTest extends FunSuite {
     )
 
     actual.nodes should be (expected)
-    actual.withItems should be (false)
-  }
-
-  test("IndexAggregator: result with prependItems") {
-    val actual = getAggregatedResult.prependItems(items).result()
-    val expected = Array(
-      ItemNode(items(0).vector),          // 0
-      ItemNode(items(1).vector),          // 1
-      ItemNode(items(2).vector),          // 2
-      ItemNode(items(3).vector),          // 3
-      HyperplaneNode(hyperplane, 5, 6),   // 4
-      LeafNode(lLeaf),                    // 5
-      LeafNode(rLeaf),                    // 6
-      HyperplaneNode(hyperplane, 8, 9),   // 7
-      LeafNode(lLeaf),                    // 8
-      LeafNode(rLeaf),                    // 9
-      HyperplaneNode(hyperplane, 11, 12), // 10
-      LeafNode(lLeaf),                    // 11
-      LeafNode(rLeaf),                    // 12
-      RootNode(4),
-      RootNode(7),
-      RootNode(10)
-    )
-
-    actual.nodes should be (expected)
-    actual.withItems should be (true)
   }
 
 }
