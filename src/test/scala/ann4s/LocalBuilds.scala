@@ -74,7 +74,7 @@ object LocalBuilds {
     val directory = new File("exp/annoy")
     directory.mkdirs()
     val os = new FileOutputStream(new File(directory, "local.ann"))
-    index.writeAnnoyBinary(items, os)
+    AnnoyUtil.dump(items, index.getNodes, os)
     os.close()
   }
 
