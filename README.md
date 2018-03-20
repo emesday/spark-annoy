@@ -83,7 +83,7 @@ libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.6"
 ```
  - `0.0.6` is built with Apache Spark 1.6.2
  
-# Objective
+# Objectives
 
 1. Distributed Index Builds
     - handles 100M or more vectors
