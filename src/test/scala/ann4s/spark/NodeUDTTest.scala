@@ -9,7 +9,7 @@ import scala.util.Random
 
 class NodeUDTTest extends FunSuite {
 
-  test("") {
+  test("NodeUDT") {
 
     val d = 64
     val random = new Random(0x0816)

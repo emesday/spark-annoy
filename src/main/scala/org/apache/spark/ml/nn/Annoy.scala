@@ -3,8 +3,7 @@ package org.apache.spark.ml.nn
 import java.io.OutputStream
 
 import ann4s._
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.SerializableWritable
+import org.apache.hadoop.fs.Path
 import org.apache.spark.ml._
 import org.apache.spark.ml.linalg.{Vector => MlVector, VectorUDT => MlVectorUDT}
 import org.apache.spark.ml.param._
@@ -71,17 +70,8 @@ class AnnoyModel private[ml] (
     AnnoyUtil.dump(vectorWithIds.sortBy(_.id).collect(), index.getNodes, os)
   }
 
-  def writeSSTFiles(path: String, numPartitions: Int = 0): Unit = {
-    val sc = items.sparkSession.sparkContext
-    val hadoopConfiguration = sc.hadoopConfiguration
-    val bcHadoopConfiguration = sc.broadcast(new SerializableWritable(hadoopConfiguration))
+  def writeToRocksDB(path: String, numPartitions: Int = 0): Unit = {
 
-    val fs = FileSystem.get(hadoopConfiguration)
-    val indexSstFile = new Path(path, "index")
-
-    SSTUtil.writeIndex(index, indexSstFile, fs)
-
-    // write items
     val rdd = items.select($(idCol), $(featuresCol), $(metadataCol)).rdd.map {
       case Row(id: Int, features: MlVector, metadata: String) => (id, features, metadata)
     }
@@ -92,14 +82,13 @@ class AnnoyModel private[ml] (
       rdd.sortBy(_._1)
     }
 
-    val writtenFiles = sorted.mapPartitionsWithIndex { (i, it) =>
-      val fs = FileSystem.get(bcHadoopConfiguration.value.value)
-      val itemSstFile = new Path(path, f"item_$i%04d")
-      SSTUtil.writeItems(i, it, itemSstFile, fs)
-      Iterator.single(itemSstFile)
+    val serializedItemSstFiles = sorted.mapPartitionsWithIndex { (i, it) =>
+      Iterator.single(i -> SstUtil.serializeItemSstFile(it))
     }
 
-    writtenFiles.foreach(println) // To trigger the job.
+    val indexSstFile = SstUtil.writeIndex(index)
+
+    SstUtil.mergeAll(path, indexSstFile, serializedItemSstFiles.toLocalIterator)
   }
 
 }

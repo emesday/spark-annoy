@@ -33,13 +33,15 @@ object DistributedBuilds {
     annModel.write.overwrite().save("exp/ann")
 
     val loaded = AnnoyModel.load("exp/ann")
+
     val path = new Path("exp/annoy", "spark.ann")
+
     val fs = FileSystem.get(spark.sparkContext.hadoopConfiguration)
     val os = fs.create(path, true, 1024*1024)
     loaded.writeAnnoyBinary(os)
     os.close()
 
-    loaded.writeSSTFiles("exp/rocksdb", 10)
+    loaded.writeToRocksDB("exp/rocksdb", 10)
 
     spark.stop()
   }
