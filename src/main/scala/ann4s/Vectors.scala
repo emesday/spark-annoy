@@ -11,8 +11,6 @@ trait Vector extends Serializable {
 
   def numBytes: Int
 
-  def fill(bb: ByteBuffer): Unit
-
   def floats: Array[Float]
 
   override def equals(other: Any): Boolean = {
@@ -36,45 +34,36 @@ trait Vector extends Serializable {
       case _ => false
     }
   }
-
 }
 
 case object Vector0 extends Vector {
   override def size: Int = 0
-  override def numBytes: Int = 0
-  override def fill(bb: ByteBuffer): Unit = {}
+  override def numBytes: Int = 1
   override def floats: Array[Float] = Array.emptyFloatArray
 }
 
 case class Vector8(vector: Array[Byte], w: Float, b: Float) extends Vector {
   override def size: Int = vector.length
-  override def numBytes: Int = vector.length + 8
-  override def fill(bb: ByteBuffer): Unit = {
-    bb.put(vector)
-    bb.putFloat(w)
-    bb.putFloat(b)
-  }
+  override def numBytes: Int = 5 + vector.length + 8
+
   override def floats: Array[Float] = ???
 }
 
 case class Vector16(vector: Array[Short]) extends Vector {
   override def size: Int = vector.length
-  override def numBytes: Int = vector.length * 2
-  override def fill(bb: ByteBuffer): Unit = vector foreach bb.putShort
+  override def numBytes: Int = 5 + vector.length * 2
   override def floats: Array[Float] = ???
 }
 
 case class Vector32(vector: Array[Float]) extends Vector {
   override def size: Int = vector.length
-  override def numBytes: Int = vector.length * 4
-  override def fill(bb: ByteBuffer): Unit = vector foreach bb.putFloat
+  override def numBytes: Int = 5 + vector.length * 4
   override def floats: Array[Float] = vector
 }
 
 case class Vector64(vector: Array[Double]) extends Vector {
   override def size: Int = vector.length
-  override def numBytes: Int = vector.length * 8
-  override def fill(bb: ByteBuffer): Unit = vector foreach bb.putDouble
+  override def numBytes: Int = 5 + vector.length * 8
   override def floats: Array[Float] = vector.map(_.toFloat)
 }
 
@@ -115,6 +104,46 @@ object Vectors {
         blas.sdot(sx.length, sx, 1, sy, 1).toDouble
       case (Vector64(dx), Vector64(dy)) =>
         blas.ddot(dx.length, dx, 1, dy, 1)
+    }
+  }
+
+  def fillByteBuffer(v: Vector, bb: ByteBuffer): Unit = {
+    v match {
+      case Vector0 =>
+        bb.put(1.toByte)
+      case Vector8(vector, w, b) =>
+        bb.put(2.toByte)
+        bb.putInt(vector.length)
+        bb.put(vector)
+        bb.putFloat(w)
+        bb.putFloat(b)
+      case Vector16(vector) =>
+        bb.put(3.toByte)
+        bb.putInt(vector.length)
+        vector foreach bb.putShort
+      case Vector32(vector) =>
+        bb.put(4.toByte)
+        bb.putInt(vector.length)
+        vector foreach bb.putFloat
+      case Vector64(vector) =>
+        bb.put(5.toByte)
+        bb.putInt(vector.length)
+        vector foreach bb.putDouble
+    }
+  }
+
+  def fromByteBuffer(bb: ByteBuffer): Vector = {
+    bb.get().toInt match {
+      case 1 =>
+        Vector0
+      case 2 =>
+        Vector8(Array.fill(bb.getInt)(bb.get), bb.getFloat, bb.getFloat)
+      case 3 =>
+        Vector16(Array.fill(bb.getInt)(bb.getShort))
+      case 4 =>
+        Vector32(Array.fill(bb.getInt)(bb.getFloat))
+      case 5 =>
+        Vector64(Array.fill(bb.getInt)(bb.getDouble))
     }
   }
 

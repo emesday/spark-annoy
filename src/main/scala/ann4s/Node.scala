@@ -16,7 +16,15 @@ trait Node extends Serializable {
 
 object Node {
 
-  def fromByteArray(ar: Array[Byte]): Node = ???
+  def fromByteArray(ar: Array[Byte]): Node = {
+    val bb = ByteBuffer.wrap(ar)
+    bb.get.toInt match {
+      case 1 => RootNode(bb.getInt)
+      case 2 => InternalNode(bb.getInt, bb.getInt, Vectors.fromByteBuffer(bb))
+      case 3 => FlipNode(bb.getInt, bb.getInt)
+      case 4 => LeafNode(Array.fill(bb.getInt)(bb.getInt))
+    }
+  }
 
 }
 
@@ -50,7 +58,7 @@ case class InternalNode(l: Int, r: Int, hyperplane: Vector) extends Node {
     bb.put(2.toByte)
     bb.putInt(l)
     bb.putInt(r)
-    hyperplane.fill(bb)
+    Vectors.fillByteBuffer(hyperplane, bb)
     bb.array()
   }
 
@@ -81,8 +89,9 @@ case class FlipNode(l: Int, r: Int) extends Node {
 case class LeafNode(children: Array[Int]) extends Node {
 
   override def toByteArray: Array[Byte] = {
-    val bb = ByteBuffer.allocate(1 + children.length * 4)
+    val bb = ByteBuffer.allocate(1 + 4 + children.length * 4)
     bb.put(4.toByte)
+    bb.putInt(children.length)
     children foreach bb.putInt
     bb.array()
   }

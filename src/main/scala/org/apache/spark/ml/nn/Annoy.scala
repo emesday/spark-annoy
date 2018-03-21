@@ -74,7 +74,7 @@ class AnnoyModel private[ml] (
 
     if (new File(path).exists()) {
       if (overwrite) {
-        SstUtil.destroy(path)
+        RocksDBUtil.destroy(path)
       } else {
         throw new Exception(s"$path already existed")
       }
@@ -91,12 +91,12 @@ class AnnoyModel private[ml] (
     }
 
     val serializedItemSstFiles = sorted.mapPartitionsWithIndex { (i, it) =>
-      Iterator.single(i -> SstUtil.serializeItemSstFile(it))
+      Iterator.single(i -> RocksDBUtil.serializeItemSstFile(it))
     }
 
-    val indexSstFile = SstUtil.writeIndex(index)
+    val indexSstFile = RocksDBUtil.writeIndex(index)
 
-    SstUtil.mergeAll(path, indexSstFile, serializedItemSstFiles.toLocalIterator)
+    RocksDBUtil.mergeAll(path, indexSstFile, serializedItemSstFiles.toLocalIterator)
   }
 
 }
