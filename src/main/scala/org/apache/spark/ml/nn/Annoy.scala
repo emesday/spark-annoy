@@ -1,6 +1,6 @@
 package org.apache.spark.ml.nn
 
-import java.io.OutputStream
+import java.io.{File, OutputStream}
 
 import ann4s._
 import org.apache.hadoop.fs.Path
@@ -70,7 +70,15 @@ class AnnoyModel private[ml] (
     AnnoyUtil.dump(vectorWithIds.sortBy(_.id).collect(), index.getNodes, os)
   }
 
-  def writeToRocksDB(path: String, numPartitions: Int = 0): Unit = {
+  def writeToRocksDB(path: String, numPartitions: Int = 0, overwrite: Boolean = false): Unit = {
+
+    if (new File(path).exists()) {
+      if (overwrite) {
+        SstUtil.destroy(path)
+      } else {
+        throw new Exception(s"$path already existed")
+      }
+    }
 
     val rdd = items.select($(idCol), $(featuresCol), $(metadataCol)).rdd.map {
       case Row(id: Int, features: MlVector, metadata: String) => (id, features, metadata)

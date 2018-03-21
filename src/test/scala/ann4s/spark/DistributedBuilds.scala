@@ -41,7 +41,7 @@ object DistributedBuilds {
     loaded.writeAnnoyBinary(os)
     os.close()
 
-    loaded.writeToRocksDB("exp/rocksdb", 10)
+    loaded.writeToRocksDB("exp/rocksdb", 10, overwrite = true)
 
     spark.stop()
   }

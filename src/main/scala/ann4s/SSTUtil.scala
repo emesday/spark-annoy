@@ -12,6 +12,12 @@ import scala.collection.JavaConverters._
 
 object SstUtil {
 
+  def destroy(path: String): Unit = {
+    val options = new Options()
+    RocksDB.destroyDB(path, options)
+    options.close()
+  }
+
   def writeIndex(index: Index): String = {
     val file = File.createTempFile("sstutil_index.", ".sst").toString
     val envOptions = new EnvOptions
