@@ -1,5 +1,6 @@
 package ann4s
 
+import java.nio.ByteBuffer
 import java.util
 
 import com.github.fommil.netlib.BLAS
@@ -7,6 +8,10 @@ import com.github.fommil.netlib.BLAS
 trait Vector extends Serializable {
 
   def size: Int
+
+  def numBytes: Int
+
+  def fill(bb: ByteBuffer): Unit
 
   def floats: Array[Float]
 
@@ -36,26 +41,40 @@ trait Vector extends Serializable {
 
 case object Vector0 extends Vector {
   override def size: Int = 0
+  override def numBytes: Int = 0
+  override def fill(bb: ByteBuffer): Unit = {}
   override def floats: Array[Float] = Array.emptyFloatArray
 }
 
 case class Vector8(vector: Array[Byte], w: Float, b: Float) extends Vector {
   override def size: Int = vector.length
+  override def numBytes: Int = vector.length + 8
+  override def fill(bb: ByteBuffer): Unit = {
+    bb.put(vector)
+    bb.putFloat(w)
+    bb.putFloat(b)
+  }
   override def floats: Array[Float] = ???
 }
 
 case class Vector16(vector: Array[Short]) extends Vector {
   override def size: Int = vector.length
+  override def numBytes: Int = vector.length * 2
+  override def fill(bb: ByteBuffer): Unit = vector foreach bb.putShort
   override def floats: Array[Float] = ???
 }
 
 case class Vector32(vector: Array[Float]) extends Vector {
   override def size: Int = vector.length
+  override def numBytes: Int = vector.length * 4
+  override def fill(bb: ByteBuffer): Unit = vector foreach bb.putFloat
   override def floats: Array[Float] = vector
 }
 
 case class Vector64(vector: Array[Double]) extends Vector {
   override def size: Int = vector.length
+  override def numBytes: Int = vector.length * 8
+  override def fill(bb: ByteBuffer): Unit = vector foreach bb.putDouble
   override def floats: Array[Float] = vector.map(_.toFloat)
 }
 

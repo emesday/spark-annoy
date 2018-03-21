@@ -26,7 +26,7 @@ class NodeUDT extends UserDefinedType[Node] {
       case FlipNode(l, r) =>
         row.setByte(0, 3)
         row.update(1, UnsafeArrayData.fromPrimitiveArray(Array(l, r)))
-      case HyperplaneNode(hyperplane, l, r) =>
+      case HyperplaneNode(l, r, hyperplane) =>
         row.update(1, UnsafeArrayData.fromPrimitiveArray(Array(l, r)))
         hyperplane match {
           case Vector0 =>
@@ -67,24 +67,24 @@ class NodeUDT extends UserDefinedType[Node] {
             FlipNode(ar(0), ar(1))
           case 100 =>
             val ar = row.getArray(1).toIntArray()
-            HyperplaneNode(Vector0, ar(0), ar(1))
+            HyperplaneNode(ar(0), ar(1), Vector0)
           case 101 =>
             val ar = row.getArray(1).toIntArray()
             val wb = row.getArray(4).toFloatArray()
             val vector = Vector8(row.getArray(2).toByteArray(), wb(0), wb(1))
-            HyperplaneNode(vector, ar(0), ar(1))
+            HyperplaneNode(ar(0), ar(1), vector)
           case 102 =>
             val ar = row.getArray(1).toIntArray()
             val vector = Vector16(row.getArray(3).toShortArray())
-            HyperplaneNode(vector, ar(0), ar(1))
+            HyperplaneNode(ar(0), ar(1), vector)
           case 103 =>
             val ar = row.getArray(1).toIntArray()
             val vector = Vector32(row.getArray(4).toFloatArray())
-            HyperplaneNode(vector, ar(0), ar(1))
+            HyperplaneNode(ar(0), ar(1), vector)
           case 104 =>
             val ar = row.getArray(1).toIntArray()
             val vector = Vector64(row.getArray(5).toDoubleArray())
-            HyperplaneNode(vector, ar(0), ar(1))
+            HyperplaneNode(ar(0), ar(1), vector)
         }
     }
   }

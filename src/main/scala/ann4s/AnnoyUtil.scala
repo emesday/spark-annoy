@@ -50,7 +50,7 @@ object AnnoyUtil {
       case RootNode(location) =>
         assert(numItemNodes > 0 && numHyperplaneNodes > 0 && numLeafNodes > 0)
         nodes.nodes(math.abs(location)) match {
-          case HyperplaneNode(hyperplane, l, r) =>
+          case HyperplaneNode(l, r, hyperplane) =>
             buffer.clear()
             buffer.putInt(numItemNodes)
             buffer.putInt(numItemNodes + math.abs(l))
@@ -69,7 +69,7 @@ object AnnoyUtil {
           case _ => assert(false)
         }
         numRootNodes += 1
-      case HyperplaneNode(hyperplane, l, r) =>
+      case HyperplaneNode(l, r, hyperplane) =>
         assert(numRootNodes == 0)
         buffer.clear()
         buffer.putInt(Int.MaxValue) // fake

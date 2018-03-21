@@ -16,20 +16,20 @@ class IndexAggregatorTest extends FunSuite {
 
   def getAggregatedResult: IndexAggregator = {
     val aggregator = new IndexAggregator
-    val nodes = Array( HyperplaneNode(hyperplane, 1, 2), LeafNode(lLeaf), LeafNode(rLeaf), RootNode(0) )
+    val nodes = Array( HyperplaneNode(1, 2, hyperplane), LeafNode(lLeaf), LeafNode(rLeaf), RootNode(0) )
     aggregator.aggregate(nodes).aggregate(nodes).aggregate(nodes)
   }
 
   test("IndexAggregator: result") {
     val actual = getAggregatedResult.result()
     val expected = Array(
-      HyperplaneNode(hyperplane, 1, 2), // 0
+      HyperplaneNode(1, 2, hyperplane), // 0
       LeafNode(lLeaf),                  // 1
       LeafNode(rLeaf),                  // 2
-      HyperplaneNode(hyperplane, 4, 5), // 3
+      HyperplaneNode(4, 5, hyperplane), // 3
       LeafNode(lLeaf),                  // 4
       LeafNode(rLeaf),                  // 5
-      HyperplaneNode(hyperplane, 7, 8), // 6
+      HyperplaneNode(7, 8, hyperplane), // 6
       LeafNode(lLeaf),                  // 7
       LeafNode(rLeaf),                  // 8
       RootNode(0),

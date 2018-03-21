@@ -41,7 +41,6 @@ object DistributedBuilds {
 
     loaded.writeSSTFiles("exp/rocksdb", 10)
 
-
     spark.stop()
   }
 

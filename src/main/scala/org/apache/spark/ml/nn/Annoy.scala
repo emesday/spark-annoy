@@ -6,7 +6,7 @@ import ann4s._
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SerializableWritable
 import org.apache.spark.ml._
-import org.apache.spark.ml.linalg.{VectorUDT => MlVectorUDT}
+import org.apache.spark.ml.linalg.{Vector => MlVector, VectorUDT => MlVectorUDT}
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.param.shared.{HasFeaturesCol, HasSeed}
 import org.apache.spark.ml.util._
@@ -15,8 +15,6 @@ import org.apache.spark.sql.{DataFrame, Dataset, Row}
 import org.apache.spark.storage.StorageLevel
 import org.json4s.DefaultFormats
 import org.json4s.JsonDSL._
-import org.apache.spark.ml.linalg.{Vector => MlVector}
-import org.rocksdb.{EnvOptions, Options, SstFileWriter}
 
 import scala.util.Random
 
@@ -74,7 +72,16 @@ class AnnoyModel private[ml] (
   }
 
   def writeSSTFiles(path: String, numPartitions: Int = 0): Unit = {
-    /*
+    val sc = items.sparkSession.sparkContext
+    val hadoopConfiguration = sc.hadoopConfiguration
+    val bcHadoopConfiguration = sc.broadcast(new SerializableWritable(hadoopConfiguration))
+
+    val fs = FileSystem.get(hadoopConfiguration)
+    val indexSstFile = new Path(path, "index")
+
+    SSTUtil.writeIndex(index, indexSstFile, fs)
+
+    // write items
     val rdd = items.select($(idCol), $(featuresCol), $(metadataCol)).rdd.map {
       case Row(id: Int, features: MlVector, metadata: String) => (id, features, metadata)
     }
@@ -85,25 +92,14 @@ class AnnoyModel private[ml] (
       rdd.sortBy(_._1)
     }
 
-    val sc = items.sparkSession.sparkContext
-    val bc = sc.broadcast(new SerializableWritable(sc.hadoopConfiguration))
-
-    sorted.mapPartitionsWithIndex { (partitionIndex, it) =>
-
-      val fs = FileSystem.get(bc.value.value)
-
-      val itemSstFile = f"i_$partitionIndex%03d.sst"
-
-      val envOptions = new EnvOptions()
-      val options = new Options()
-      val sstFileWriter = new SstFileWriter(envOptions, options)
-
-      it foreach { case (id, features, metadata) =>
-
-      }
+    val writtenFiles = sorted.mapPartitionsWithIndex { (i, it) =>
+      val fs = FileSystem.get(bcHadoopConfiguration.value.value)
+      val itemSstFile = new Path(path, f"item_$i%04d")
+      SSTUtil.writeItems(i, it, itemSstFile, fs)
+      Iterator.single(itemSstFile)
     }
-    */
-    ???
+
+    writtenFiles.foreach(println) // To trigger the job.
   }
 
 }
