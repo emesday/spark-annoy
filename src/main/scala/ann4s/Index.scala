@@ -28,7 +28,7 @@ class Index(val nodes: IndexedSeq[Node]) extends Serializable {
     var node = nodes(nodeId)
     while (!node.isInstanceOf[LeafNode] && !node.isInstanceOf[FlipNode]) {
       node match {
-        case HyperplaneNode(l, r, hyperplane) =>
+        case InternalNode(l, r, hyperplane) =>
           if (distance.side(hyperplane, vector) == Side.Left) nodeId = math.abs(l)
           else nodeId = math.abs(r)
         case _ => assert(false)
@@ -148,7 +148,7 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
       if (failed) {
         nodes += FlipNode(l, r)
       } else {
-        nodes += HyperplaneNode(l, r, hyperplane)
+        nodes += InternalNode(l, r, hyperplane)
       }
       nodes.length - 1
     }

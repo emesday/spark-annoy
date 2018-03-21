@@ -23,7 +23,7 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
     other foreach {
       case root: RootNode =>
         roots += root.withOffset(offset)
-      case hyperplane: HyperplaneNode =>
+      case hyperplane: InternalNode =>
         nodes += hyperplane.withOffset(offset)
       case flip: FlipNode =>
         nodes += flip.withOffset(offset)
@@ -52,7 +52,7 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
     val offset = nodes.length
 
     nodes(subTreeId) = subTreeRoot match {
-      case hyperplane: HyperplaneNode =>
+      case hyperplane: InternalNode =>
         hyperplane.withOffset(offset)
       case flip: FlipNode =>
         flip.withOffset(offset)
@@ -63,7 +63,7 @@ class IndexAggregator(var nodes: ArrayBuffer[Node]) {
     other.dropRight(1) foreach {
       case root: RootNode =>
         roots += root.withOffset(offset)
-      case hyperplane: HyperplaneNode =>
+      case hyperplane: InternalNode =>
         nodes += hyperplane.withOffset(offset)
       case flip: FlipNode =>
         nodes += flip.withOffset(offset)

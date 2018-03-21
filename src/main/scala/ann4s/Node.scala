@@ -35,9 +35,11 @@ case class RootNode(location: Int) extends Node {
   def isLeafNode: Boolean = false
 }
 
-// l or r can be negative value when the corresponding child is LeafNode
-case class HyperplaneNode(l: Int, r: Int, hyperplane: Vector) extends Node {
-  def withOffset(offset: Int): HyperplaneNode = {
+/**
+  * l or r is the negative value when the corresponding child is LeafNode
+  */
+case class InternalNode(l: Int, r: Int, hyperplane: Vector) extends Node {
+  def withOffset(offset: Int): InternalNode = {
     val newL = if (l > 0) l + offset else l - offset
     val newR = if (r > 0) r + offset else r - offset
     copy(newL, newR, hyperplane)
@@ -55,6 +57,9 @@ case class HyperplaneNode(l: Int, r: Int, hyperplane: Vector) extends Node {
   def isLeafNode: Boolean = false
 }
 
+/**
+  * a special case of InternalNode whose hyperplane is 0
+  */
 case class FlipNode(l: Int, r: Int) extends Node {
   def withOffset(offset: Int): FlipNode = {
     val newL = if (l > 0) l + offset else l - offset
