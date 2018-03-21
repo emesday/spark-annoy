@@ -104,6 +104,10 @@ object Vectors {
         blas.sdot(sx.length, sx, 1, sy, 1).toDouble
       case (Vector64(dx), Vector64(dy)) =>
         blas.ddot(dx.length, dx, 1, dy, 1)
+      case (Vector32(sx), Vector64(dy)) =>
+        var d = 0.0; var i = 0; while (i < sx.length) { d += sx(i) * dy(i); i += 1 }; d
+      case (Vector64(dx), Vector32(sy)) =>
+        var d = 0.0; var i = 0; while (i < dx.length) { d += dx(i) * sy(i); i += 1 }; d
     }
   }
 

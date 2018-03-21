@@ -133,7 +133,7 @@ object RocksDBUtil {
       val bb = ByteBuffer.wrap(value)
       val size = bb.getInt()
       val floats = Array.fill(size)(bb.getFloat)
-      val metadata = new String(bb.array(), bb.arrayOffset(), bb.capacity())
+      val metadata = new String(bb.array(), bb.position(), bb.capacity() - bb.position())
       Vector32(floats) -> metadata
     })
   }

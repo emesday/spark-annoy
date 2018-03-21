@@ -48,8 +48,8 @@ case class RootNode(location: Int) extends Node {
   */
 case class InternalNode(l: Int, r: Int, hyperplane: Vector) extends Node {
   def withOffset(offset: Int): InternalNode = {
-    val newL = if (l > 0) l + offset else l - offset
-    val newR = if (r > 0) r + offset else r - offset
+    val newL = if (l >= 0) l + offset else l - offset
+    val newR = if (r >= 0) r + offset else r - offset
     copy(newL, newR, hyperplane)
   }
 
@@ -70,8 +70,8 @@ case class InternalNode(l: Int, r: Int, hyperplane: Vector) extends Node {
   */
 case class FlipNode(l: Int, r: Int) extends Node {
   def withOffset(offset: Int): FlipNode = {
-    val newL = if (l > 0) l + offset else l - offset
-    val newR = if (r > 0) r + offset else r - offset
+    val newL = if (l >= 0) l + offset else l - offset
+    val newR = if (r >= 0) r + offset else r - offset
     copy(newL, newR)
   }
 

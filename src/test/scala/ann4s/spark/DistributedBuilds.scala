@@ -4,7 +4,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.nn.{Annoy, AnnoyModel}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.functions._
 
 object DistributedBuilds {
 
@@ -26,7 +26,7 @@ object DistributedBuilds {
       .setNumTrees(2)
 
     val data = spark.read.parquet("dataset/train")
-    val withMetadata = data.withColumn("metadata", data("id") cast StringType)
+    val withMetadata = data.withColumn("metadata", lit("test"))
 
     val annModel = ann.fit(withMetadata)
 

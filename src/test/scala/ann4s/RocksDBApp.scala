@@ -24,8 +24,7 @@ object RocksDBApp {
         i += 1
       }
 
-      val copied = ar.map(_.toDouble)
-      val cv = Vector64(copied)
+      val cv = Vector32(ar.clone())
       items += id -> cv
       id += 1
     }

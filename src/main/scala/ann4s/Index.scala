@@ -154,7 +154,7 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
   import IndexBuilder._
 
   def build(points: IndexedSeq[IdVectorWithNorm]): Index = {
-    val nodes = new ArrayBuffer[Node]()
+    val nodes = new ArrayBuffer[Node]() += FlipNode(0, 0) // an useless node for 1-base indexing
     val roots = new ArrayBuffer[RootNode]()
     0 until numTrees foreach { _ =>
       val rootId = recurse(points, nodes)
@@ -167,7 +167,8 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
   def recurse(points: IndexedSeq[IdVectorWithNorm], nodes: ArrayBuffer[Node]): Int = {
     if (points.length <= leafNodeCapacity) {
       nodes += LeafNode(points.map(_.id).toArray)
-      nodes.length - 1
+      // id of LeafNode, mark it as LeafNode
+      -(nodes.length - 1)
     } else {
       var failed = false
       val hyperplane = createSplit(points)
@@ -193,7 +194,7 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
         }
       }
 
-      var (l, r) = if (leftChildren.length <= rightChildren.length) {
+      val (l, r) = if (leftChildren.length <= rightChildren.length) {
         val l = recurse(leftChildren, nodes)
         val r = recurse(rightChildren, nodes)
         (l, r)
@@ -202,16 +203,13 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
         val l = recurse(leftChildren, nodes)
         (l, r)
       }
-
-      // trick for check if the children of hyperplane node are LeafNode or not.
-      if (nodes(l).isInstanceOf[LeafNode]) l = -l
-      if (nodes(r).isInstanceOf[LeafNode]) r = -r
 
       if (failed) {
         nodes += FlipNode(l, r)
       } else {
         nodes += InternalNode(l, r, hyperplane)
       }
+      // id of InternalNode (or FlipNode)
       nodes.length - 1
     }
   }
