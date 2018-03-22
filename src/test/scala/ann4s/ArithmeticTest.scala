@@ -276,11 +276,6 @@ class ArithmeticTest extends FunSuite {
 
     val hyperplane = IndexBuilder.createSplit(points)(CosineDistance, new SequenceRandom)
 
-    // testing immutable
-    points.map(_.vector.floats) zip samples foreach { case (p, n) =>
-      p should be (n)
-    }
-
     hyperplane.floats zip expectedHyperplane foreach { case (a, e) =>
       a.toDouble should be (e +- 1e-4)
     }
