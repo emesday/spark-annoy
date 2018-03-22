@@ -18,7 +18,7 @@ trait Vector extends Serializable {
       case o: Vector =>
         if (this.size != o.size) return false
         (this, o) match {
-          case (Vector0, Vector0) => true
+          //case (Vector0, Vector0) => true // TODO
           case (a: Vector8, b: Vector8) =>
             if (a.w != b.w) false
             else if (a.b != b.b) false

@@ -30,7 +30,7 @@ object Node {
 
 case class RootNode(location: Int) extends Node {
   def withOffset(offset: Int): RootNode = {
-    copy(if (location > 0) location + offset else location - offset)
+    copy(if (location >= 0) location + offset else location - offset)
   }
 
   override def toByteArray: Array[Byte] = {

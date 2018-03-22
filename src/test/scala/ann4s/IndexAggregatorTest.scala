@@ -21,7 +21,7 @@ class IndexAggregatorTest extends FunSuite {
   }
 
   test("IndexAggregator: result") {
-    val actual = getAggregatedResult.result()
+    val actual = getAggregatedResult.result().nodes.toArray
     val expected = Array(
       InternalNode(1, 2, hyperplane), // 0
       LeafNode(lLeaf),                  // 1
@@ -37,7 +37,7 @@ class IndexAggregatorTest extends FunSuite {
       RootNode(6)
     )
 
-    actual.nodes should be (expected)
+    actual should be (expected)
   }
 
 }
