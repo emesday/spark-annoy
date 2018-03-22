@@ -172,6 +172,8 @@ class Annoy(override val uid: String)
 
   def setIdCol(value: String): this.type = set(idCol, value)
 
+  def setFeaturesCol(value: String): this.type = set(featuresCol, value)
+
   def setMetadataCol(value: String): this.type = set(metadataCol, value)
 
   def setNumTrees(value: Int): this.type = set(numTrees, value)
