@@ -2,13 +2,13 @@
 
 # Ann4s
 
--[x] Distributed Index Builds
+- [x] Distributed Index Builds
     - handles 100M or more vectors
--[x] Annoy Compatible Binary
+- [x] Annoy Compatible Binary
     - dumps index and items which is compatible with Annoy
--[ ] Queries are performed on persistence layers like HBase and RocksDB.
+- [ ] Queries are performed on persistence layers like HBase and RocksDB.
     - persist Index and Items in this layer
--[ ] CRUD supports
+- [ ] CRUD supports
     - If `1` is the major build step. this step is minor build step to handle streaming data.
     - uses this as Lambda architecture.
 
