@@ -2,6 +2,10 @@
 
 # Ann4s
 
+Approximate Nearest Neighbors for Scala and Apache Spark
+
+# Milestone
+
 - [x] Distributed Index Builds
     - handles 100M or more vectors
 - [x] Annoy Compatible Binary
