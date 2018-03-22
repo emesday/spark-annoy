@@ -5,9 +5,11 @@ import java.nio.{ByteBuffer, ByteOrder}
 
 object AnnoyUtil {
 
-  def dump[T <: HasId with HasVector](sortedItems: IndexedSeq[T], nodes: Nodes, os: OutputStream): Unit = {
+  def dump[T <: HasId with HasVector](sortedItemIterator: Iterator[T], nodes: Nodes, os: OutputStream): Unit = {
 
-    val d = sortedItems.head.getVector.size
+    val d = nodes.nodes.find(_.isInstanceOf[InternalNode]) match {
+      case Some(InternalNode(_, _, hyperplane)) => hyperplane.size
+    }
     val bos = new BufferedOutputStream(os, 1024 * 1024)
     val buffer = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
     val hole =  new Array[Byte](12 + d * 4)
@@ -17,7 +19,7 @@ object AnnoyUtil {
     var numHoles = 0
     var i = 0
     var lastId = -1
-    for (item <- sortedItems) {
+    for (item <- sortedItemIterator) {
       val id = item.getId
       val v = item.getVector
 

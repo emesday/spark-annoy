@@ -23,6 +23,10 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
 
   def getIdCol: String = $(idCol)
 
+  final val rawIdCol: Param[String] = new Param[String](this, "rawIdCol", "rawId column name")
+
+  def getRawIdCol: String = $(rawIdCol)
+
   final val metadataCol: Param[String] = new Param[String](this, "metadataCol", "metadata column name")
 
   def getMetadataCol: String = $(metadataCol)
@@ -67,7 +71,7 @@ class AnnoyModel private[ml] (
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
       case Row(id: Int, features: MlVector) => IdVector(id, Vector64(features.toArray))
     }
-    AnnoyUtil.dump(vectorWithIds.sortBy(_.id).collect(), index.getNodes, os)
+    AnnoyUtil.dump(vectorWithIds.sortBy(_.id).toLocalIterator, index.getNodes, os)
   }
 
   def writeToRocksDB(path: String, numPartitions: Int = 0, overwrite: Boolean = false): Unit = {
@@ -164,7 +168,8 @@ object AnnoyModel extends MLReadable[AnnoyModel] {
 class Annoy(override val uid: String)
   extends Estimator[AnnoyModel] with ANNParams with DefaultParamsWritable {
 
-  setDefault(idCol -> "id", featuresCol -> "features", metadataCol -> "metadata", numTrees -> 1, fraction -> 0.01)
+  setDefault(idCol -> "id", rawIdCol -> "id", featuresCol -> "features", metadataCol -> "id",
+    numTrees -> 1, fraction -> 0.01)
 
   override def copy(extra: ParamMap): Annoy = defaultCopy(extra)
 
@@ -179,6 +184,8 @@ class Annoy(override val uid: String)
   def setNumTrees(value: Int): this.type = set(numTrees, value)
 
   def setFraction(value: Double): this.type = set(fraction, value)
+
+  def setRawIdCol(value: String): this.type = set(rawIdCol, value)
 
   override def fit(dataset: Dataset[_]): AnnoyModel = {
     transformSchema(dataset.schema, logging = true)
@@ -232,8 +239,13 @@ class Annoy(override val uid: String)
 
     val index = globalAggregator.result()
 
-    val model = copyValues(
-      new AnnoyModel(uid, d, index, dataset.select($(idCol), $(featuresCol), $(metadataCol)))).setParent(this)
+    val items = ($(idCol), $(rawIdCol), $(metadataCol)) match {
+      case (a, b, c) if a == b && a == c => dataset.select($(idCol), $(featuresCol))
+      case (a, b, c) if a == b && a != c => dataset.select($(idCol), $(featuresCol), $(metadataCol))
+      case _ => dataset.select($(idCol), $(rawIdCol), $(featuresCol), $(metadataCol))
+    }
+
+    val model = copyValues(new AnnoyModel(uid, d, index, items)).setParent(this)
     instr.logSuccess(model)
     if (handlePersistence) {
       instances.unpersist()
