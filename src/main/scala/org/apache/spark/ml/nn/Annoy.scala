@@ -3,7 +3,7 @@ package org.apache.spark.ml.nn
 import java.io.{File, OutputStream}
 
 import ann4s._
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.ml._
 import org.apache.spark.ml.linalg.{Vector => MlVector, VectorUDT => MlVectorUDT}
 import org.apache.spark.ml.param._
@@ -22,14 +22,6 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
   final val idCol: Param[String] = new Param[String](this, "idCol", "id column name")
 
   def getIdCol: String = $(idCol)
-
-  final val rawIdCol: Param[String] = new Param[String](this, "rawIdCol", "rawId column name")
-
-  def getRawIdCol: String = $(rawIdCol)
-
-  final val metadataCol: Param[String] = new Param[String](this, "metadataCol", "metadata column name")
-
-  def getMetadataCol: String = $(metadataCol)
 
   final val numTrees: IntParam = new IntParam(this, "numTrees", "number of trees to build")
 
@@ -67,15 +59,18 @@ class AnnoyModel private[ml] (
 
   override def write: MLWriter = new AnnoyModel.ANNModelWriter(this)
 
-  def writeAnnoyBinary(os: OutputStream): Unit = {
+  def writeAnnoyBinary(path: String): Unit = {
+    val fs = FileSystem.get(items.sparkSession.sparkContext.hadoopConfiguration)
+    val os = fs.create(new Path(path), true, 1048576)
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
-      case Row(id: Int, features: MlVector) => IdVector(id, Vector64(features.toArray))
+      case Row(id: Int, features: MlVector) =>
+        IdVector(id, Vector32(features.toArray.map(_.toFloat)))
     }
     AnnoyUtil.dump(vectorWithIds.sortBy(_.id).toLocalIterator, index.getNodes, os)
+    os.close()
   }
 
   def writeToRocksDB(path: String, numPartitions: Int = 0, overwrite: Boolean = false): Unit = {
-
     if (new File(path).exists()) {
       if (overwrite) {
         RocksDBUtil.destroy(path)
@@ -84,14 +79,14 @@ class AnnoyModel private[ml] (
       }
     }
 
-    val rdd = items.select($(idCol), $(featuresCol), $(metadataCol)).rdd.map {
-      case Row(id: Int, features: MlVector, metadata: String) => (id, features, metadata)
+    val rdd = items.select($(idCol), $(featuresCol)).rdd.map {
+      case Row(id: Int, features: MlVector) => IdVector(id, Vector32(features.toArray.map(_.toFloat)))
     }
 
     val sorted = if (numPartitions > 0) {
-      rdd.sortBy(_._1, ascending = true, numPartitions)
+      rdd.sortBy(_.id, ascending = true, numPartitions)
     } else {
-      rdd.sortBy(_._1)
+      rdd.sortBy(_.id)
     }
 
     val serializedItemSstFiles = sorted.mapPartitionsWithIndex { (i, it) =>
@@ -168,8 +163,7 @@ object AnnoyModel extends MLReadable[AnnoyModel] {
 class Annoy(override val uid: String)
   extends Estimator[AnnoyModel] with ANNParams with DefaultParamsWritable {
 
-  setDefault(idCol -> "id", rawIdCol -> "id", featuresCol -> "features", metadataCol -> "id",
-    numTrees -> 1, fraction -> 0.01)
+  setDefault(idCol -> "id", featuresCol -> "features", numTrees -> 1, fraction -> 0.01)
 
   override def copy(extra: ParamMap): Annoy = defaultCopy(extra)
 
@@ -179,13 +173,9 @@ class Annoy(override val uid: String)
 
   def setFeaturesCol(value: String): this.type = set(featuresCol, value)
 
-  def setMetadataCol(value: String): this.type = set(metadataCol, value)
-
   def setNumTrees(value: Int): this.type = set(numTrees, value)
 
   def setFraction(value: Double): this.type = set(fraction, value)
-
-  def setRawIdCol(value: String): this.type = set(rawIdCol, value)
 
   override def fit(dataset: Dataset[_]): AnnoyModel = {
     transformSchema(dataset.schema, logging = true)
@@ -239,12 +229,7 @@ class Annoy(override val uid: String)
 
     val index = globalAggregator.result()
 
-    val items = ($(idCol), $(rawIdCol), $(metadataCol)) match {
-      case (a, b, c) if a == b && a == c => dataset.select($(idCol), $(featuresCol))
-      case (a, b, c) if a == b && a != c => dataset.select($(idCol), $(featuresCol), $(metadataCol))
-      case _ => dataset.select($(idCol), $(rawIdCol), $(featuresCol), $(metadataCol))
-    }
-
+    val items = dataset.select($(idCol), $(featuresCol))
     val model = copyValues(new AnnoyModel(uid, d, index, items)).setParent(this)
     instr.logSuccess(model)
     if (handlePersistence) {

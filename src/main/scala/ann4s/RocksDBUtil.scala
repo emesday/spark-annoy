@@ -40,20 +40,15 @@ object RocksDBUtil {
     file
   }
 
-  def serializeItemSstFile(it: Iterator[(Int, MlVector, String)]): Array[Byte] = {
+  def serializeItemSstFile(it: Iterator[IdVector]): Array[Byte] = {
     val file = File.createTempFile("sstutil_item.", ".sst")
     val envOptions = new EnvOptions
     val options = new Options
     val writer = new SstFileWriter(envOptions, options)
     writer.open(file.toString)
-    it foreach { case (id, vector, metadata) =>
-      val metadataBytes = metadata.getBytes("UTF-8")
-      val bb = ByteBuffer.allocate(4 + vector.size * 4 + metadataBytes.length)
-      bb.putInt(vector.size)
-      vector.toArray foreach { x => bb.putFloat(x.toFloat) }
-      bb.put(metadataBytes)
+    it foreach { case IdVector(id, vector) =>
       val key = ByteBuffer.allocate(4).putInt(id).array()
-      val value = bb.array()
+      val value = Vectors.getBytes(vector)
       writer.put(key, value)
     }
     writer.finish()

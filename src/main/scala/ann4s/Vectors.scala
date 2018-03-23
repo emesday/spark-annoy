@@ -111,6 +111,12 @@ object Vectors {
     }
   }
 
+  def getBytes(v: Vector): Array[Byte] = {
+    val bb = ByteBuffer.allocate(v.numBytes)
+    fillByteBuffer(v, bb)
+    bb.array()
+  }
+
   def fillByteBuffer(v: Vector, bb: ByteBuffer): Unit = {
     v match {
       case Vector0 =>
