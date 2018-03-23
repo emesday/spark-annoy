@@ -1,6 +1,6 @@
 package org.apache.spark.ml.nn
 
-import java.io.{File, OutputStream}
+import java.io.File
 
 import ann4s._
 import org.apache.hadoop.fs.{FileSystem, Path}

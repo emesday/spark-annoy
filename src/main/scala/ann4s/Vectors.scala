@@ -13,6 +13,8 @@ trait Vector extends Serializable {
 
   def floats: Array[Float]
 
+  def apply(i: Int): Float
+
   override def equals(other: Any): Boolean = {
     other match {
       case o: Vector =>
@@ -40,34 +42,39 @@ case object Vector0 extends Vector {
   override def size: Int = 0
   override def numBytes: Int = 1
   override def floats: Array[Float] = Array.emptyFloatArray
+  override def apply(i: Int): Float = ???
 }
 
 case class Vector8(vector: Array[Byte], w: Float, b: Float) extends Vector {
   override def size: Int = vector.length
   override def numBytes: Int = 5 + vector.length + 8
-
   override def floats: Array[Float] = ???
+  override def apply(i: Int): Float = ???
 }
 
 case class Vector16(vector: Array[Short]) extends Vector {
   override def size: Int = vector.length
   override def numBytes: Int = 5 + vector.length * 2
-  override def floats: Array[Float] = ???
+  override def floats: Array[Float] = vector.map { v => v.toFloat / (1 << 8) }
+  override def apply(i: Int): Float = vector(i).toFloat / (1 << 8)
 }
 
 case class Vector32(vector: Array[Float]) extends Vector {
   override def size: Int = vector.length
   override def numBytes: Int = 5 + vector.length * 4
   override def floats: Array[Float] = vector
+  override def apply(i: Int): Float = vector(i)
 }
 
 case class Vector64(vector: Array[Double]) extends Vector {
   override def size: Int = vector.length
   override def numBytes: Int = 5 + vector.length * 8
   override def floats: Array[Float] = vector.map(_.toFloat)
+  override def apply(i: Int): Float = vector(i).toFloat
 }
 
 object Vectors {
+
 
   private val blas: BLAS = BLAS.getInstance()
 
@@ -91,6 +98,8 @@ object Vectors {
 
   def nrm2(x: Vector): Double  = {
     x match {
+      case v16: Vector16 =>
+        math.sqrt(dot(v16, v16))
       case Vector32(sx) =>
         blas.snrm2(sx.length, sx, 1).toDouble
       case Vector64(dx) =>
@@ -108,6 +117,8 @@ object Vectors {
         var d = 0.0; var i = 0; while (i < sx.length) { d += sx(i) * dy(i); i += 1 }; d
       case (Vector64(dx), Vector32(sy)) =>
         var d = 0.0; var i = 0; while (i < dx.length) { d += dx(i) * sy(i); i += 1 }; d
+      case (hx: Vector16, hy: Vector16) =>
+        var d = 0.0; var i = 0; while (i < hx.size) { d += hx(i) * hy(i); i += 1 }; d
     }
   }
 
@@ -155,6 +166,11 @@ object Vectors {
       case 5 =>
         Vector64(Array.fill(bb.getInt)(bb.getDouble))
     }
+  }
+
+  def vector16(ar: Array[Float]): Vector = {
+    val quantized = ar.map { x => math.round(x * (1 << 8)).toShort }
+    Vector16(quantized)
   }
 
 }
