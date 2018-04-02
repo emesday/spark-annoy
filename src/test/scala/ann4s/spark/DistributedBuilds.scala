@@ -32,7 +32,6 @@ object DistributedBuilds {
     val loaded = AnnoyModel.load("exp/ann")
 
     loaded.writeAnnoyBinary("exp/annoy/spark.ann")
-    loaded.writeToRocksDB("exp/rocksdb", 10, overwrite = true)
 
     spark.stop()
   }

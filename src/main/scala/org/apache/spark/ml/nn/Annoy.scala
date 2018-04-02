@@ -1,7 +1,5 @@
 package org.apache.spark.ml.nn
 
-import java.io.File
-
 import ann4s._
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.ml._
@@ -51,7 +49,7 @@ class AnnoyModel private[ml] (
     copyValues(new AnnoyModel(uid, d, index, items), extra)
   }
 
-  override def transform(dataset: Dataset[_]): DataFrame = ???
+  override def transform(dataset: Dataset[_]): DataFrame = throw new Error("not support")
 
   override def transformSchema(schema: StructType): StructType = {
     validateAndTransformSchema(schema)
@@ -70,62 +68,17 @@ class AnnoyModel private[ml] (
     os.close()
   }
 
-  def writeToRocksDB(path: String, numPartitions: Int = 0, overwrite: Boolean = false): Unit = {
-    if (new File(path).exists()) {
-      if (overwrite) {
-        RocksDBUtil.destroy(path)
-      } else {
-        throw new Exception(s"$path already existed")
-      }
-    }
-
-    val rdd = items.select($(idCol), $(featuresCol)).rdd.map {
-      case Row(id: Int, features: MlVector) => IdVector(id, Vector32(features.toArray.map(_.toFloat)))
-    }
-
-    val sorted = if (numPartitions > 0) {
-      rdd.sortBy(_.id, ascending = true, numPartitions)
-    } else {
-      rdd.sortBy(_.id)
-    }
-
-    val serializedItemSstFiles = sorted.mapPartitionsWithIndex { (i, it) =>
-      Iterator.single(i -> RocksDBUtil.serializeItemSstFile(it))
-    }
-
-    val indexSstFile = RocksDBUtil.writeIndex(index)
-
-    RocksDBUtil.mergeAll(path, indexSstFile, serializedItemSstFiles.toLocalIterator)
-  }
-
 }
 
 object AnnoyModel extends MLReadable[AnnoyModel] {
-
-  def registerUDT(): Unit = {
-    UDTRegistration.register("ann4s.Vector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.EmptyVector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.Fixed8Vector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.Fixed16Vector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.Float32Vector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.Float64Vector", "org.apache.spark.ml.nn.VectorUDT")
-
-    UDTRegistration.register("ann4s.Node", "org.apache.spark.ml.nn.NodeUDT")
-    UDTRegistration.register("ann4s.RootNode", "org.apache.spark.ml.nn.NodeUDT")
-    UDTRegistration.register("ann4s.HyperplaneNode", "org.apache.spark.ml.nn.NodeUDT")
-    UDTRegistration.register("ann4s.LeafNode", "org.apache.spark.ml.nn.NodeUDT")
-    UDTRegistration.register("ann4s.FlipNode", "org.apache.spark.ml.nn.NodeUDT")
-  }
 
   override def read: MLReader[AnnoyModel] = new ANNModelReader
 
   override def load(path: String): AnnoyModel = super.load(path)
 
   private[AnnoyModel] class ANNModelWriter(instance: AnnoyModel) extends MLWriter {
-
     override protected def saveImpl(path: String): Unit = {
-      registerUDT()
-
+      NodeUDT.register()
       val extraMetadata = "d" -> instance.d
       DefaultParamsWriter.saveMetadata(instance, path, sc, Some(extraMetadata))
       val indexPath = new Path(path, "index").toString
@@ -142,8 +95,7 @@ object AnnoyModel extends MLReadable[AnnoyModel] {
     private val className = classOf[AnnoyModel].getName
 
     override def load(path: String): AnnoyModel = {
-      registerUDT()
-
+      NodeUDT.register()
       val sparkSession = super.sparkSession
       import sparkSession.implicits._
       val metadata = DefaultParamsReader.loadMetadata(path, sc, className)

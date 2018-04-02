@@ -8,12 +8,6 @@ case class Nodes(nodes: IndexedSeq[Node]) {
   def toIndex: Index = new Index(nodes)
 }
 
-object Index {
-
-  def fromRocksDB(path: String): Index = RocksDBUtil.openIndex(path)
-
-}
-
 class Index(
   val nodes: IndexedSeq[Node],
   getLeafNode: Int => Array[Int],
@@ -35,55 +29,6 @@ class Index(
   val redirectedRoots: Array[Node] = roots map { case RootNode(location) => nodes(location) }
 
   def getNodes: Nodes = Nodes(nodes)
-
-  def getCandidates(query: Vector, n: Int)(implicit distance: Distance): Set[Int] = {
-    val q = new mutable.PriorityQueue[(Float, Node)]()(Ordering.by(_._1)) ++=
-      redirectedRoots.map(Float.PositiveInfinity -> _)
-
-    val nns = new ArrayBuffer[Int](n)
-    while (nns.length < n && q.nonEmpty) {
-      val (marginL, l, marginR, r) = q.dequeue() match {
-        case (d, InternalNode(l, r, hyperplane)) =>
-          val margin = distance.margin(hyperplane, query)
-          (math.min(d, -margin.toFloat), l, math.min(d, margin.toFloat), r)
-        case (d, FlipNode(l, r)) =>
-          (math.min(d, 0), l, math.min(d, 0), r)
-      }
-
-      if (r > 0) {
-        q += marginR -> nodes(r)
-      } else {
-        nns ++= getLeafNode(-r)
-      }
-
-      if (l > 0) {
-        q += marginL -> nodes(l)
-      } else {
-        nns ++= getLeafNode(-l)
-      }
-    }
-    nns.toSet
-  }
-
-  val sortOrder = new Ordering[(Int, String, Float)]{
-    def compare(x: (Int, String, Float), y: (Int, String, Float)): Int = {
-      Ordering[Float].compare(x._3, y._3)
-    }
-  }
-
-  val queueOrder = sortOrder.reverse
-
-  def getNns(query: Vector, n: Int, k: Int)(implicit distance: Distance): Array[(Int, String, Float)] = {
-    val candidates = getCandidates(query, if (k < 0) roots.length * 100 else k)
-    val withVector = candidates.toSeq.map(id => id -> getItem(id))
-
-    val boundedQueue = new BoundedPriorityQueue[(Int, String, Float)](n)(queueOrder)
-    withVector foreach { case (id, (vector, metadata)) =>
-      boundedQueue += ((id, metadata, distance.distance(query, vector).toFloat))
-    }
-
-    boundedQueue.toArray.sorted(sortOrder)
-  }
 
   def traverse(vector: Vector)(implicit distance: Distance, random: Random): Int = {
     var nodeId = roots(0).location
@@ -158,7 +103,7 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
     val roots = new ArrayBuffer[RootNode]()
     0 until numTrees foreach { _ =>
       val rootId = recurse(points, nodes)
-      roots += RootNode(rootId)
+      roots += RootNode(rootId) // TODO: rootId can be negative
     }
     nodes ++= roots
     new Index(nodes)

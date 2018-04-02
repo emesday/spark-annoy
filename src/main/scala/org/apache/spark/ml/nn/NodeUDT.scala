@@ -114,3 +114,15 @@ class NodeUDT extends UserDefinedType[Node] {
       StructField("float64", ArrayType(DoubleType, containsNull = false), nullable = true)))
   }
 }
+
+object NodeUDT {
+
+  def register(): Unit = {
+    UDTRegistration.register("ann4s.Node", "org.apache.spark.ml.nn.NodeUDT")
+    UDTRegistration.register("ann4s.RootNode", "org.apache.spark.ml.nn.NodeUDT")
+    UDTRegistration.register("ann4s.HyperplaneNode", "org.apache.spark.ml.nn.NodeUDT")
+    UDTRegistration.register("ann4s.LeafNode", "org.apache.spark.ml.nn.NodeUDT")
+    UDTRegistration.register("ann4s.FlipNode", "org.apache.spark.ml.nn.NodeUDT")
+  }
+
+}

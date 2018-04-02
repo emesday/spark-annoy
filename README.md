@@ -2,93 +2,47 @@
 
 # Ann4s
 
-Approximate Nearest Neighbors for Scala and Apache Spark
-
-# Milestone
-
-- [x] Distributed Index Builds
-    - handles 100M or more vectors
-- [x] Annoy Compatible Binary
-    - dumps index and items which is compatible with Annoy
-- [ ] Queries are performed on persistence layers like HBase and RocksDB.
-    - persist Index and Items in this layer
-- [ ] CRUD supports
-    - If `1` is the major build step. this step is minor build step to handle streaming data.
-    - uses this as Lambda architecture.
+Building [Annoy](https://github.com/spotify/annoy) Index on Apache Spark
 
 # Distributed Builds & Dump to Annoy Compatible Binary
 
-```
-    val data: DataFrame = _
-    val ann = new Annoy()
-      .setIdCol("id")
-      .setFeaturesCol("features")
-      .setNumTrees(2)
-      
-    val annModel = ann.fit(data)
-    
-    annModel.write.save("/path/to/save/spark-ml-model")
-    
-    annModel.writeAnnoyBinary("/path/to/save/annoy-compatible-binary")
-```
-
-# Queries on Persistence Layers
-TBD
-
-# CRUD supports
-TBD
-
-# Deprecated API (tag v0.0.6)
-```
-
-# Spark code example (with DataFrame-based API)
-
-## Item similarity computation
 ```scala
-val dataset: DataFrame = ??? // your dataset
-
-val alsModel: ALSModel = new ALS()
-  .fit(dataset)
-
-val annoyModel: AnnoyModel = new Annoy()
-  .setDimension(alsModel.rank)
-  .fit(alsModel.itemFactors)
-
-val result: DataFrame = annoyModel
-  .setK(10) // find 10 neighbors
-  .transform(alsModel.itemFactors)
-
-result.show()
-```      
-
-The `result.show()` shows
-
-```
-+---+--------+-----------+
-| id|neighbor|   distance|
-+---+--------+-----------+
-|  0|       0|        0.0|
-|  0|      50|0.014339785|
-...
-|  1|       1|        0.0|
-|  1|      36|0.011467933|
-...
-+---+--------+-----------+
+val data: DataFrame = _
+val ann = new Annoy()
+  .setIdCol("id")
+  .setFeaturesCol("features")
+  .setNumTrees(2)
+      
+val annModel = ann.fit(data)
+    
+annModel.writeAnnoyBinary("/path/to/save/annoy-compatible-binary")
 ```
 
- - For more information of ALS see this [link](http://spark.apache.org/docs/2.0.0/ml-collaborative-filtering.html)
- - Working example is at 'src/test/scala/ann4s/spark/AnnoySparkSpec.scala'
+# Dependency
 
 ```
 resolvers += Resolver.bintrayRepo("mskimm", "maven")
 
 libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.6"
 ```
- - `0.0.6` is built with Apache Spark 1.6.2
- 
+ - `0.1.0` is built with Apache Spark 2.3.0
+
+# Comment
+
+I personally started this project to study Scala. I found out that Annoy
+is a fairly good library for nearest neighbors search and can be implemented
+distributed version using Apache Spark. Recently, various bindings and
+implementations have been actively developed. In particular, the purpose
+and usability of this project overlap with some projects like
+[annoy4s](https://github.com/annoy4s/annoy4s) and
+[annoy-java](https://github.com/spotify/annoy-java) in terms of running on JVM. 
+
+To continue contribution, from now on this project focuses on building Index 
+on Apache Spark for distributed builds. This will support building using 
+1 billion or more items and writing Annoy compatible binary.
 
 # References
+
  - https://github.com/spotify/annoy : native implementation with serveral bindings like Python
  - https://github.com/pishen/annoy4s : Scala wrapper using JNA
  - https://github.com/spotify/annoy-java : Java implementation
-

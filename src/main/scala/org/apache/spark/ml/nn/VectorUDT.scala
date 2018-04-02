@@ -81,3 +81,16 @@ class VectorUDT extends UserDefinedType[Vector] {
       StructField("float64", ArrayType(DoubleType, containsNull = false), nullable = true)))
   }
 }
+
+object VectorUDT {
+
+  def register(): Unit = {
+    UDTRegistration.register("ann4s.Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.EmptyVector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Fixed8Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Fixed16Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Float32Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Float64Vector", "org.apache.spark.ml.nn.VectorUDT")
+  }
+
+}

@@ -9,7 +9,6 @@ crossScalaVersions := Seq("2.10.6")
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "2.3.0" % "provided",
   "org.apache.spark" %% "spark-mllib" % "2.3.0" % "provided",
-  "org.rocksdb" % "rocksdbjni" % "5.11.3",
   "org.scalatest" %% "scalatest" % "2.2.6" % "test"
 )
 
