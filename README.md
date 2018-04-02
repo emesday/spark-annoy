@@ -11,7 +11,7 @@ val data: DataFrame = _
 val ann = new Annoy()
   .setIdCol("id")
   .setFeaturesCol("features")
-  .setNumTrees(2)
+  .setNumTrees(10)
       
 val annModel = ann.fit(data)
     
@@ -22,8 +22,7 @@ annModel.writeAnnoyBinary("/path/to/save/annoy-compatible-binary")
 
 ```
 resolvers += Resolver.bintrayRepo("mskimm", "maven")
-
-libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.0.6"
+libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.0"
 ```
  - `0.1.0` is built with Apache Spark 2.3.0
 
