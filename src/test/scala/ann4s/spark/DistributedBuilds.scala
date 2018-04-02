@@ -20,10 +20,10 @@ object DistributedBuilds {
       .appName("distributed builds")
       .getOrCreate()
 
+    val data = spark.read.parquet("dataset/train")
+
     val ann = new Annoy()
       .setNumTrees(2)
-
-    val data = spark.read.parquet("dataset/train")
 
     val annModel = ann.fit(data)
 

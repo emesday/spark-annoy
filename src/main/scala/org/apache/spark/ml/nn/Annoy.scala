@@ -183,7 +183,7 @@ class Annoy(override val uid: String)
     val handlePersistence = dataset.storageLevel == StorageLevel.NONE
 
     val instances = dataset.select($(idCol), $(featuresCol)).rdd.map {
-      case Row(id: Int, features: MlVector) => IdVectorWithNorm(id, features.toArray)
+      case Row(id: Int, features: MlVector) => IdVectorWithNorm(id, features.toArray.map(_.toFloat))
     }
 
     if (handlePersistence) {
