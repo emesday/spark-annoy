@@ -103,7 +103,7 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
     val roots = new ArrayBuffer[RootNode]()
     0 until numTrees foreach { _ =>
       val rootId = recurse(points, nodes)
-      roots += RootNode(rootId) // TODO: rootId can be negative
+      roots += RootNode(math.abs(rootId))
     }
     nodes ++= roots
     new Index(nodes)

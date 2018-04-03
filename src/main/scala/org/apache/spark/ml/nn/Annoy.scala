@@ -31,7 +31,7 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
 
   protected def validateAndTransformSchema(schema: StructType): StructType = {
     SchemaUtils.checkColumnType(schema, $(idCol), IntegerType)
-    SchemaUtils.checkColumnType(schema, $(featuresCol), new MlVectorUDT)
+    SchemaUtils.checkColumnTypes(schema, $(featuresCol), Seq(new MlVectorUDT, ArrayType(FloatType, false)))
     schema
   }
 }
@@ -63,6 +63,8 @@ class AnnoyModel private[ml] (
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
       case Row(id: Int, features: MlVector) =>
         IdVector(id, Vector32(features.toArray.map(_.toFloat)))
+      case Row(id: Int, features: Seq[_]) =>
+        IdVector(id, Vector32(features.asInstanceOf[Seq[Float]].toArray))
     }
     AnnoyUtil.dump(vectorWithIds.sortBy(_.id).toLocalIterator, index.getNodes, os)
     os.close()
@@ -135,7 +137,10 @@ class Annoy(override val uid: String)
     val handlePersistence = dataset.storageLevel == StorageLevel.NONE
 
     val instances = dataset.select($(idCol), $(featuresCol)).rdd.map {
-      case Row(id: Int, features: MlVector) => IdVectorWithNorm(id, features.toArray.map(_.toFloat))
+      case Row(id: Int, features: MlVector) =>
+        IdVectorWithNorm(id, features.toArray.map(_.toFloat))
+      case Row(id: Int, features: Seq[_]) =>
+        IdVectorWithNorm(id, features.asInstanceOf[Seq[Float]].toArray)
     }
 
     if (handlePersistence) {

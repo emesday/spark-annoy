@@ -4,18 +4,24 @@
 
 Building [Annoy](https://github.com/spotify/annoy) Index on Apache Spark
 
-# Distributed Builds & Dump to Annoy Compatible Binary
+# Distributed Builds
 
 ```scala
-val data: DataFrame = _
+import spark.implicits._
+
+val data = spark.read.textFile("data/annoy/sample-glove-25-angular.txt")
+  .map { str =>
+    val Array(id, features) = str.split("\t")
+    (id.toInt, features.split(",").map(_.toFloat))
+  }
+  .toDF("id", "features")
+
 val ann = new Annoy()
-  .setIdCol("id")
-  .setFeaturesCol("features")
-  .setNumTrees(10)
-      
+  .setNumTrees(2)
+
 val annModel = ann.fit(data)
-    
-annModel.writeAnnoyBinary("/path/to/save/annoy-compatible-binary")
+
+annModel.writeAnnoyBinary("/path/to/dump/annoy-binary")
 ```
 
 # Dependency
@@ -25,6 +31,37 @@ resolvers += Resolver.bintrayRepo("mskimm", "maven")
 libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.0"
 ```
  - `0.1.0` is built with Apache Spark 2.3.0
+ 
+# Use Case
+
+## Index ALS User/Item Factors
+ - src/test/scala/ann4s/spark/example/ALSBasedUserItemIndexing.scala
+ 
+```scala
+...
+val training: DataFrame = _
+val als = new ALS()
+  .setMaxIter(5)
+  .setRegParam(0.01)
+  .setUserCol("userId")
+  .setItemCol("movieId")
+  .setRatingCol("rating")
+
+val model = als.fit(training)
+
+val ann = new Annoy()
+  .setNumTrees(2)
+  .setFraction(0.1)
+  .setIdCol("id")
+  .setFeaturesCol("features")
+
+val userAnnModel= ann.fit(model.userFactors)
+userAnnModel.writeAnnoyBinary("exp/als/user_factors.ann")
+
+val itemAnnModel = ann.fit(model.itemFactors)
+itemAnnModel.writeAnnoyBinary("exp/als/item_factors.ann")
+...
+```
 
 # Comment
 

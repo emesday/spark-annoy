@@ -5,35 +5,28 @@ import java.io.{BufferedInputStream, DataInputStream, FileInputStream}
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql.SparkSession
 
-object PrepareDataset {
+object PrepareDataset extends LocalSparkApp {
 
-  def main(args: Array[String]): Unit = {
-    val spark = SparkSession
-      .builder
-      .master("local[4]")
-      .appName("Prepare Dataset")
-      .getOrCreate()
+  def run(spark: SparkSession): Unit = {
+    import spark.implicits._
 
-    val is = try { new FileInputStream(s"dataset/train.bin") }
-    catch { case _: Throwable => throw new Error("run `dataset/download.sh` in shell first") }
+    val is = try { new FileInputStream(s"data/train.bin") }
+    catch { case _: Throwable => throw new Error("run `data/download.sh` in shell first") }
 
     val dis = new DataInputStream(new BufferedInputStream(is))
     val n = dis.readInt()
     val d = dis.readInt()
 
-    val dataset = Array.fill(n)(Vectors.dense(Array.fill(d)(dis.readFloat.toDouble))).zipWithIndex
-
-    import spark.implicits._
+    val data = Array.fill(n)(Vectors.dense(Array.fill(d)(dis.readFloat.toDouble))).zipWithIndex
 
     spark
       .sparkContext
-      .parallelize(dataset)
+      .parallelize(data)
       .toDF("features", "id")
       .write
       .mode("overwrite")
-      .parquet(s"dataset/train")
+      .parquet(s"data/train")
 
-    spark.stop()
   }
 
 }
