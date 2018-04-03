@@ -2,9 +2,10 @@ import sys
 import h5py
 import numpy as np
 
-dataset = h5py.File(sys.argv[1], 'r')
+train = h5py.File(sys.argv[1], 'r')['train']
+arr = np.array(train, dtype='f4')
 
-for key, dtype in [('train', 'float32'), ('test', 'float32'), ('neighbors', 'int32'), ('distances', 'float32')]:
-    arr = np.array(dataset[key], dtype=dtype)
-    print(key, dtype, arr.shape)
-    arr.tofile(key + '.bin')
+# used big-endian for Java
+with open('train.bin', 'wb') as f:
+    np.array(train.shape, dtype='int32').astype('>i4').tofile(f)
+    arr.astype('>f4').tofile(f)
