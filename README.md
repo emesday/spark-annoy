@@ -32,6 +32,13 @@ libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.0"
 ```
  - `0.1.0` is built with Apache Spark 2.3.0
  
+# How does it work?
+
+1. builds a parent tree using sampled data on Spark Master
+2. all data are grouped by the leaf node of parent tree on Spark Nodes
+3. builds subtree using the grouped data on each Spark Nodes
+4. aggregate all nodes of subtree to parent tree on Spark Master
+ 
 # Use Case
 
 ## Index ALS User/Item Factors
