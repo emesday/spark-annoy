@@ -7,11 +7,7 @@ import java.nio.ByteBuffer
   * LeafNode is stored in persistent layer
   */
 trait Node extends Serializable {
-
-  def toByteArray: Array[Byte]
-
-  def isLeafNode: Boolean
-
+  def withOffset(offset: Int): Node
 }
 
 object Node {
@@ -32,15 +28,6 @@ case class RootNode(location: Int) extends Node {
   def withOffset(offset: Int): RootNode = {
     copy(if (location >= 0) location + offset else location - offset)
   }
-
-  override def toByteArray: Array[Byte] = {
-    val bb = ByteBuffer.allocate(5)
-    bb.put(1.toByte)
-    bb.putInt(location)
-    bb.array()
-  }
-
-  def isLeafNode: Boolean = false
 }
 
 /**
@@ -52,17 +39,6 @@ case class InternalNode(l: Int, r: Int, hyperplane: Vector) extends Node {
     val newR = if (r >= 0) r + offset else r - offset
     copy(newL, newR, hyperplane)
   }
-
-  override def toByteArray: Array[Byte] = {
-    val bb = ByteBuffer.allocate(9 + hyperplane.numBytes)
-    bb.put(2.toByte)
-    bb.putInt(l)
-    bb.putInt(r)
-    Vectors.fillByteBuffer(hyperplane, bb)
-    bb.array()
-  }
-
-  def isLeafNode: Boolean = false
 }
 
 /**
@@ -74,29 +50,10 @@ case class FlipNode(l: Int, r: Int) extends Node {
     val newR = if (r >= 0) r + offset else r - offset
     copy(newL, newR)
   }
-
-  override def toByteArray: Array[Byte] = {
-    val bb = ByteBuffer.allocate(9)
-    bb.put(3.toByte)
-    bb.putInt(l)
-    bb.putInt(r)
-    bb.array()
-  }
-
-  def isLeafNode: Boolean = false
 }
 
 case class LeafNode(children: Array[Int]) extends Node {
-
-  override def toByteArray: Array[Byte] = {
-    val bb = ByteBuffer.allocate(1 + 4 + children.length * 4)
-    bb.put(4.toByte)
-    bb.putInt(children.length)
-    children foreach bb.putInt
-    bb.array()
-  }
-
-  def isLeafNode: Boolean = true
+  def withOffset(offset: Int): LeafNode = this
 }
 
 
