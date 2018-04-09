@@ -2,7 +2,7 @@
 
 # Ann4s
 
-Building [Annoy](https://github.com/spotify/annoy) Index on Apache Spark
+Building [Annoy](https://github.com/spotify/annoy) Index on Apache Spark. Then query neighbors using Annoy.
 
 # Distributed Builds
 
