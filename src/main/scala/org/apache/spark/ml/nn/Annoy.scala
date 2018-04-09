@@ -29,6 +29,14 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
 
   def getFraction: Double = $(fraction)
 
+  final val forAnnoy: BooleanParam = new BooleanParam(this, "forAnnoy", "build Annoy compatible binary")
+
+  def getForAnnoy: Boolean = $(forAnnoy)
+
+  final val maxChildren: IntParam = new IntParam(this, "maxChildren", "max number of children")
+
+  def getMaxChildren: Int = $(maxChildren)
+
   protected def validateAndTransformSchema(schema: StructType): StructType = {
     SchemaUtils.checkColumnType(schema, $(idCol), IntegerType)
     SchemaUtils.checkColumnTypes(schema, $(featuresCol), Seq(new MlVectorUDT, ArrayType(FloatType, false)))
@@ -58,6 +66,7 @@ class AnnoyModel private[ml] (
   override def write: MLWriter = new AnnoyModel.ANNModelWriter(this)
 
   def writeAnnoyBinary(path: String): Unit = {
+    require($(forAnnoy), "not built for Annoy")
     val fs = FileSystem.get(items.sparkSession.sparkContext.hadoopConfiguration)
     val os = fs.create(new Path(path), true, 1048576)
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
@@ -117,7 +126,8 @@ object AnnoyModel extends MLReadable[AnnoyModel] {
 class Annoy(override val uid: String)
   extends Estimator[AnnoyModel] with ANNParams with DefaultParamsWritable {
 
-  setDefault(idCol -> "id", featuresCol -> "features", numTrees -> 1, fraction -> 0.01)
+  setDefault(idCol -> "id", featuresCol -> "features", numTrees -> 1, fraction -> 0.01,
+    forAnnoy -> true, maxChildren -> 0)
 
   override def copy(extra: ParamMap): Annoy = defaultCopy(extra)
 
@@ -130,6 +140,10 @@ class Annoy(override val uid: String)
   def setNumTrees(value: Int): this.type = set(numTrees, value)
 
   def setFraction(value: Double): this.type = set(fraction, value)
+
+  def setForAnnoy(value: Boolean): this.type = set(forAnnoy, value)
+
+  def setMaxChildren(value: Int): this.type = set(maxChildren, value)
 
   override def fit(dataset: Dataset[_]): AnnoyModel = {
     transformSchema(dataset.schema, logging = true)
@@ -158,10 +172,13 @@ class Annoy(override val uid: String)
     val samples = instances.sample(withReplacement = false, $(fraction), localRandom.nextLong()).collect()
 
     val d = samples.head.vector.size
+
+    val mc = if ($(forAnnoy) || $(maxChildren) == 0) d + 2 else $(maxChildren)
+
     val globalAggregator = new IndexAggregator
     var i = 0
     while (i < $(numTrees)) {
-      val parentTree = new IndexBuilder(1, d + 2).build(samples)
+      val parentTree = new IndexBuilder(1, mc).build(samples)
       val localAggregator = new IndexAggregator().aggregate(parentTree.nodes)
 
       val withSubTreeId = instances.mapPartitionsWithIndex { case (i, it) =>
@@ -173,7 +190,7 @@ class Annoy(override val uid: String)
       val grouped = withSubTreeId.groupByKey()
 
       val subTreeNodesWithId = grouped.mapValues { it =>
-        new IndexBuilder(1, d + 2)(CosineDistance, Random).build(it.toIndexedSeq).nodes
+        new IndexBuilder(1, mc)(CosineDistance, Random).build(it.toIndexedSeq).nodes
       }
 
       subTreeNodesWithId.collect().foreach { case (subTreeId, subTreeNodes) =>
