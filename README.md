@@ -28,9 +28,9 @@ annModel.writeAnnoyBinary("/path/to/dump/annoy-binary")
 
 ```
 resolvers += Resolver.bintrayRepo("mskimm", "maven")
-libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.0"
+libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.1"
 ```
- - `0.1.0` is built with Apache Spark 2.3.0
+ - `0.1.1` is built with Apache Spark 2.3.0
  
 # How does it work?
 
