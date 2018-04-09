@@ -22,7 +22,6 @@ object FastTextIndexing extends LocalSparkApp {
 
     val ann = new Annoy()
       .setNumTrees(2)
-      .setFraction(0.1)
       .setIdCol("id")
       .setFeaturesCol("features")
 

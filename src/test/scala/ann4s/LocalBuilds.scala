@@ -1,9 +1,7 @@
 package ann4s
 
-import java.io.{File, FileInputStream, FileOutputStream}
-import java.nio.{ByteBuffer, ByteOrder}
+import java.io._
 
-import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 object LocalBuilds {
@@ -11,38 +9,29 @@ object LocalBuilds {
   val d = 25
 
   def readDataset(): IndexedSeq[IdVectorWithNorm] = {
-    val data = new Array[Byte](d * 4)
-    val ar = new Array[Float](d)
+    val is = try { new FileInputStream(s"data/train.bin") }
+    catch { case _: Throwable => throw new Error("run `data/download.sh` in shell first") }
 
-    val fis = new FileInputStream(s"dataset/train.bin")
-    val items = new ArrayBuffer[IdVectorWithNorm]()
-    var id = 0
-    while (fis.read(data) == d * 4) {
-      val bf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
-      var i = 0
-      while (i < d) {
-        ar(i) = bf.getFloat()
-        i += 1
-      }
-
-      val copied = ar.map(_.toDouble)
-      val cv = Vector64(copied)
-      items += IdVectorWithNorm(id, cv)
-      id += 1
-      if ((id % 10000) == 0)
-        println(id)
+    val dis = new DataInputStream(new BufferedInputStream(is))
+    val n = dis.readInt()
+    val d = dis.readInt()
+    val data = Array.fill(n)(Array.fill(d)(dis.readFloat)).zipWithIndex.map {
+      case (v, i) => IdVectorWithNorm(i, v)
     }
-    fis.close()
-    items
+    is.close()
+    data
   }
 
   def main(args: Array[String]): Unit = {
 
     val items = readDataset()
 
+    val fraction = 0.01
+    val numSamples = (fraction * items.length).toInt
+
     val globalAggregator = new IndexAggregator
 
-    val samples = Array.fill(10000)(items(Random.nextInt(items.length)))
+    val samples = Array.fill(numSamples)(items(Random.nextInt(items.length)))
 
     implicit val random: Random = new Random
     implicit val distance: Distance = CosineDistance
@@ -58,10 +47,11 @@ object LocalBuilds {
           parentTree.traverse(item.vector) -> item
         }
         .groupBy(_._1)
+        .par
         .map { case (subTreeId, it) =>
-          println(subTreeId, it.length)
           subTreeId -> new IndexBuilder(1, d + 2).build(it.map(_._2))
         }
+        .seq
         .foreach { case (subTreeId, subTreeNodes) =>
           localAggregator.mergeSubTree(subTreeId, subTreeNodes.nodes)
         }
