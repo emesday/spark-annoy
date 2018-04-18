@@ -1,18 +1,61 @@
+import scala.xml.transform.{RewriteRule, RuleTransformer}
+import scala.xml.{Comment, Elem, Node => XmlNode, NodeSeq => XmlNodeSeq}
+
 name := "ann4s"
 
-version := "0.1.2-SNAPSHOT"
-
-scalaVersion := "2.11.8"
-
-crossScalaVersions := Seq("2.10.6")
+val versions = new {
+  val spark = "2.3.0"
+  val rocksdb = "5.11.3"
+  val scalatest = "2.2.6"
+}
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.3.0" % "provided",
-  "org.apache.spark" %% "spark-mllib" % "2.3.0" % "provided",
-  "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+  "org.apache.spark" %% "spark-core" % versions.spark % "provided",
+  "org.apache.spark" %% "spark-mllib" % versions.spark % "provided",
+  "org.rocksdb" % "rocksdbjni" % versions.rocksdb,
+  "org.scalatest" %% "scalatest" % versions.scalatest % "test"
 )
 
 organization := "com.github.mskimm"
 
-licenses += "Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")
+isSnapshot := version.value.endsWith("-SNAPSHOT")
 
+scalaVersion := "2.11.8"
+
+sources in (Compile, doc) := Seq.empty
+
+scalacOptions := Seq("-feature", "unchecked", "-encoding", "utf8")
+
+homepage := Some(url("https://github.com/mskimm/ann4s"))
+
+licenses := Seq("The Apache License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+
+description := "Building Annoy Index on Apache Spark"
+
+scmInfo := Some{ val git = "https://github.com/mskimm/ann4s.git"; ScmInfo(url(git), s"scm:git:$git", Some(s"scm:git$git"))}
+
+developers := List(Developer("mskimm", "Min Seok Kim", "mskim.org@gmail.com", url("https://github.com/mskimm")))
+
+publishTo := {
+  val maven = "https://oss.sonatype.org"
+  if (isSnapshot.value)
+    Some("Sonatype Snapshots" at s"$maven/content/repositories/snapshots")
+  else
+    Some("Sonatype Staging" at s"$maven/service/local/staging/deploy/maven2")
+}
+
+credentials ++= Seq(Path.userHome / ".ivy2" / ".credentials").filter(_.exists()).map(Credentials.apply)
+
+releasePublishArtifactsAction := PgpKeys.publishSigned.value
+
+pomPostProcess := { (node: XmlNode) =>
+  new RuleTransformer(new RewriteRule {
+    override def transform(node: XmlNode): XmlNodeSeq = node match {
+      case e: Elem if e.label == "dependency" && (e \ "scope").map(_.text).exists(Set("provided", "test").contains) =>
+        val Seq(organization, artifact, version, scope) =
+          Seq("groupId", "artifactId", "version", "scope").map(x => (e \ x).head.text)
+        Comment(s"$scope dependency $organization#$artifact;$version has been omitted")
+      case _ => node
+    }
+  }).transform(node).head
+}
