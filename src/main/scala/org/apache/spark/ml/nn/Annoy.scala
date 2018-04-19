@@ -171,34 +171,44 @@ class Annoy(override val uid: String)
     implicit val localRandom: Random = new Random(randomSeed)
 
     val samples = instances.sample(withReplacement = false, $(fraction), localRandom.nextLong()).collect()
-
     val d = samples.head.vector.size
-
     val mc = if ($(forAnnoy) || $(maxChildren) == 0) d + 2 else $(maxChildren)
+
+    logDebug(s"numSamples: ${samples.length}, d: $d, maxChildrem: $mc")
 
     val globalAggregator = new IndexAggregator
     var i = 0
     while (i < $(numTrees)) {
+      logDebug(s"building tree ${i + 1}/${$(numTrees)}")
       val parentTree = new IndexBuilder(1, mc).build(samples)
+      logDebug("parent tree was built")
       val localAggregator = new IndexAggregator().aggregate(parentTree.nodes)
+      logDebug("parent tree was aggregated")
 
+      val bcParentTree = instances.sparkContext.broadcast(parentTree)
+      logDebug("parent tree was broadcasted")
       val withSubTreeId = instances.mapPartitionsWithIndex { case (i, it) =>
         // for nodes
         val distance = CosineDistance
         val random = new Random(randomSeed + i + 1)
-        it.map(x => parentTree.traverse(x.vector)(distance, random) -> x)
+        it.map(x => bcParentTree.value.traverse(x.vector)(distance, random) -> x)
       }
+
       val grouped = withSubTreeId.groupByKey()
 
       val subTreeNodesWithId = grouped.mapValues { it =>
         new IndexBuilder(1, mc)(CosineDistance, Random).build(it.toIndexedSeq).nodes
       }
 
+      logDebug("collect() invokes the sub jobs simultaneously")
       subTreeNodesWithId.collect().foreach { case (subTreeId, subTreeNodes) =>
+        logDebug(s"aggregating subTree: $subTreeId, nodes: ${subTreeNodes.length}")
         localAggregator.mergeSubTree(subTreeId, subTreeNodes)
       }
-
+      logDebug("sub trees were aggregated to localAggregator")
       globalAggregator.aggregate(localAggregator)
+      logDebug("localAggregator was merged to globalAggregator")
+      bcParentTree.unpersist()
       i += 1
     }
 

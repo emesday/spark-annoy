@@ -7,9 +7,9 @@ object AnnoyUtil {
 
   def dump[T <: HasId with HasVector](sortedItemIterator: Iterator[T], nodes: Nodes, os: OutputStream): Unit = {
 
-    val d = nodes.nodes.find(_.isInstanceOf[InternalNode]) match {
-      case Some(InternalNode(_, _, hyperplane)) => hyperplane.size
-    }
+    val Some(InternalNode(_, _, hyperplane)) = nodes.nodes.find(_.isInstanceOf[InternalNode])
+    val d = hyperplane.size
+
     val bos = new BufferedOutputStream(os, 1024 * 1024)
     val buffer = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
     val hole =  new Array[Byte](12 + d * 4)
