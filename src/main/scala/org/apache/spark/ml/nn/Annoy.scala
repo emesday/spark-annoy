@@ -39,7 +39,8 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
 
   protected def validateAndTransformSchema(schema: StructType): StructType = {
     SchemaUtils.checkColumnType(schema, $(idCol), IntegerType)
-    SchemaUtils.checkColumnTypes(schema, $(featuresCol), Seq(new MlVectorUDT, ArrayType(FloatType, false)))
+    SchemaUtils.checkColumnTypes(schema, $(featuresCol),
+      Seq(new MlVectorUDT, ArrayType(FloatType, false), ArrayType(FloatType, true)))
     schema
   }
 }
