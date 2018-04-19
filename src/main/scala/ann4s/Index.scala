@@ -91,7 +91,7 @@ object IndexBuilder {
   }
 }
 
-class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Distance, random: Random) extends Serializable {
+class IndexBuilder(numTrees: Int, leafNodeCapacity: Int, needLeafNode: Boolean = true)(implicit  distance: Distance, random: Random) extends Serializable {
 
   assert(numTrees > 0)
   assert(leafNodeCapacity > 1)
@@ -111,7 +111,8 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int)(implicit  distance: Dis
 
   def recurse(points: IndexedSeq[IdVectorWithNorm], nodes: ArrayBuffer[Node]): Int = {
     if (points.length <= leafNodeCapacity) {
-      nodes += LeafNode(points.map(_.id).toArray)
+      if (needLeafNode) nodes += LeafNode(points.map(_.id).toArray)
+      else nodes += LeafNode(Array(points.length)) // TODO: add a new node type
       // id of LeafNode, mark it as LeafNode
       -(nodes.length - 1)
     } else {

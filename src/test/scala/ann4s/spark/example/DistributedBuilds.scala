@@ -1,6 +1,7 @@
 package ann4s.spark.example
 
 import ann4s.spark.LocalSparkApp
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.nn.{Annoy, AnnoyModel}
 import org.apache.spark.sql.SparkSession
 
@@ -8,6 +9,8 @@ object DistributedBuilds extends LocalSparkApp {
 
   override def run(spark: SparkSession): Unit = {
     import spark.implicits._
+
+    Logger.getLogger("org.apache.spark.ml.nn").setLevel(Level.DEBUG)
 
     val data = spark.read.textFile("data/annoy/sample-glove-25-angular.txt")
       .map { str =>

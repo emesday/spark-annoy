@@ -173,14 +173,15 @@ class Annoy(override val uid: String)
     val samples = instances.sample(withReplacement = false, $(fraction), localRandom.nextLong()).collect()
     val d = samples.head.vector.size
     val mc = if ($(forAnnoy) || $(maxChildren) == 0) d + 2 else $(maxChildren)
+    val parentTreeMc = math.max(mc, samples.length / instances.getNumPartitions)
 
-    logDebug(s"numSamples: ${samples.length}, d: $d, maxChildrem: $mc")
+    logDebug(s"numSamples: ${samples.length}, d: $d, maxChildren: $mc, parentTreeMaxChildren: $parentTreeMc")
 
     val globalAggregator = new IndexAggregator
     var i = 0
     while (i < $(numTrees)) {
       logDebug(s"building tree ${i + 1}/${$(numTrees)}")
-      val parentTree = new IndexBuilder(1, mc).build(samples)
+      val parentTree = new IndexBuilder(1, parentTreeMc, needLeafNode = false).build(samples)
       logDebug("parent tree was built")
       val localAggregator = new IndexAggregator().aggregate(parentTree.nodes)
       logDebug("parent tree was aggregated")
