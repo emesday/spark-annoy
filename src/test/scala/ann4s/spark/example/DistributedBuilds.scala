@@ -29,16 +29,16 @@ object DistributedBuilds extends LocalSparkApp {
     val loaded = AnnoyModel.load("exp/ann")
 
     // saving all together
-    // this is compatible with Annoy
-    loaded.saveAsAnnoyBinary("exp/annoy/spark.ann")
+    // this is compatible with Annoyt
+    loaded.saveAsAnnoyBinary("exp/annoy/spark.ann", overwrite = true)
 
-    // saving individually
+    // saving partitioned data
     // should be merged using `cat` then it is compatible with Annoy
-    loaded.saveAsAnnoyBinary("exp/annoy/spark.individually", individually = true)
+    loaded.saveAsAnnoyBinary("exp/annoy/spark.partitioned", spark.sparkContext.defaultParallelism, overwrite = true)
 
-    println("$ cat exp/annoy/spark.individually.* > exp/annoy/spark.ann")
+    println("$ cat exp/annoy/spark.partitioned.* > exp/annoy/spark.merged.ann")
     println("or")
-    println("$ hadoop fs -cat exp/annoy/spark.individually.* > spark.ann")
+    println("$ hadoop fs -cat exp/annoy/spark.partitioned.* > spark.merged.ann")
   }
 
 }

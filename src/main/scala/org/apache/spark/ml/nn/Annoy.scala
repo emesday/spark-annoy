@@ -1,5 +1,7 @@
 package org.apache.spark.ml.nn
 
+import java.io.OutputStream
+
 import ann4s._
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SerializableWritable
@@ -48,6 +50,22 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
 
 trait ANNModelParams extends Params with ANNParams
 
+object AnnModel {
+
+  private val writeBufferSize = 1 << 20 // 1MiB
+
+  def using[A](fs: FileSystem, path: String, overwrite: Boolean)(f: OutputStream => A): A = {
+    val os = fs.create(new Path(path), overwrite, writeBufferSize)
+    try {
+      f(os)
+    } finally {
+      if (os != null) {
+        os.close()
+      }
+    }
+  }
+}
+
 class AnnoyModel private[ml] (
   override val uid: String,
   val d: Int,
@@ -67,10 +85,12 @@ class AnnoyModel private[ml] (
 
   override def write: MLWriter = new AnnoyModel.ANNModelWriter(this)
 
-  @deprecated("use saveAsAnnoyBinary", "0.1.4")
-  def writeAnnoyBinary(path: String): Unit = saveAsAnnoyBinary(path)
 
-  def saveAsAnnoyBinary(path: String, individually: Boolean = false, numPartitions: Int = 0): Unit = {
+
+  @deprecated("use saveAsAnnoyBinary", "0.1.4")
+  def writeAnnoyBinary(path: String): Unit = saveAsAnnoyBinary(path, overwrite = true)
+
+  def saveAsAnnoyBinary(path: String, numPartitions: Int = 0, overwrite: Boolean = false): Unit = {
     require($(forAnnoy), "not built for Annoy")
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
       case Row(id: Int, features: MlVector) =>
@@ -78,36 +98,33 @@ class AnnoyModel private[ml] (
       case Row(id: Int, features: Seq[_]) =>
         IdVector(id, Vector32(features.asInstanceOf[Seq[Float]].toArray))
     }
+    val partitioned = numPartitions > 0
     val np = if (numPartitions == 0) vectorWithIds.getNumPartitions else numPartitions
     val sorted = vectorWithIds.sortBy(_.id, ascending = true, np)
 
-    logDebug(s"numPartitions: $numPartitions => $np")
+    logDebug(s"partitioned: $partitioned")
 
     val sc = items.sparkSession.sparkContext
     val fs = FileSystem.get(sc.hadoopConfiguration)
 
-    val (itemStat, nodeStat) = if (individually) {
+    val (itemStat, nodeStat) = if (partitioned) {
       logDebug("saving nodes")
       val numItems = items.count().toInt
-      val os = fs.create(new Path(path + ".node"), true, 1048576)
-      val nodeStat0 = AnnoyUtil.saveNodes(index.getNodes, d, numItems, os)
-      os.close()
+      val nodeStat0 = AnnModel.using(fs, path + ".node", overwrite)(AnnoyUtil.saveNodes(index.getNodes, d, numItems, _))
       logDebug("saving items")
       val c = sc.broadcast(new SerializableWritable(sc.hadoopConfiguration))
+      val d0 = d // avoid broadcast whole object
       val stats = sorted.mapPartitionsWithIndex { case (i, it) =>
         val fs = FileSystem.get(c.value.value)
-        val os = fs.create(new Path(path + f".$i%08d"), true, 1048576)
-        val res = AnnoyUtil.saveItems(it, d, os)
-        os.close()
+        val res = AnnModel.using(fs, path + f".$i%08d", overwrite)(AnnoyUtil.saveItems(it, d0, _))
         Iterator.single(res)
       }
       val itemStat0 = stats.reduce(_ + _)
       (itemStat0, nodeStat0)
     } else {
       logDebug(s"saving all together to $path")
-      val os = fs.create(new Path(path), true, 1048576)
-      val (itemStat0, nodeStat0) = AnnoyUtil.dump(d, sorted.toLocalIterator, index.getNodes, os)
-      os.close()
+      val (itemStat0, nodeStat0) = AnnModel.using(fs, path, overwrite)(
+        AnnoyUtil.dump(d, sorted.toLocalIterator, index.getNodes, _))
       (itemStat0, nodeStat0)
     }
     logDebug(itemStat.toString)
