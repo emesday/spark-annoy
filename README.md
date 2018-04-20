@@ -1,8 +1,26 @@
 [![Build Status](https://travis-ci.org/mskimm/ann4s.svg?branch=master)](https://travis-ci.org/mskimm/ann4s)
+![Maven metadata URI](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/com/github/mskimm/ann4s_2.11/maven-metadata.xml.svg)
 
 # Ann4s
 
 Building [Annoy](https://github.com/spotify/annoy) Index on Apache Spark. Then query neighbors using Annoy.
+
+# Note
+
+I had built an index of 117M 64-dimensional vectors using 100 nodes in 5 minutes. The settings was;
+```
+// version: 0.1.4
+// spark.executor.instances = 100
+// spark.executor.memory = 8g
+// spark.driver.memory = 8g
+val fraction = 0.00086 // for about 100k samples
+val numTrees = 2
+val numPartitions = 100
+val annoyModel = new Annoy().setFraction(fraction).setNumTrees(numTrees).fit(dataset)
+annoyModel.saveAsAnnoyBinary("/hdfs/path/to/index", numPartitions)
+```
+
+The size of the index is about 33G.
 
 # Distributed Builds
 
@@ -21,16 +39,17 @@ val ann = new Annoy()
 
 val annModel = ann.fit(data)
 
-annModel.writeAnnoyBinary("/path/to/dump/annoy-binary")
+annModel.saveAsAnnoyBinary("/path/to/dump/annoy-binary")
 ```
 
 # Dependency
 
+From the version 0.1.2, it is released to Maven.
+
 ```
-resolvers += Resolver.bintrayRepo("mskimm", "maven")
-libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.1"
+libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.4"
 ```
- - `0.1.1` is built with Apache Spark 2.3.0
+ - `0.1.4` is built with Apache Spark 2.3.0
  
 # How does it work?
 
