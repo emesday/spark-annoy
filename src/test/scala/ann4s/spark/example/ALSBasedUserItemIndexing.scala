@@ -38,9 +38,9 @@ object ALSBasedUserItemIndexing extends LocalSparkApp {
       .setFeaturesCol("features")
 
     val userAnnModel= ann.fit(model.userFactors)
-    userAnnModel.writeAnnoyBinary("exp/als/user_factors.ann")
+    userAnnModel.saveAsAnnoyBinary("exp/als/user_factors.ann")
 
     val itemAnnModel = ann.fit(model.itemFactors)
-    itemAnnModel.writeAnnoyBinary("exp/als/item_factors.ann")
+    itemAnnModel.saveAsAnnoyBinary("exp/als/item_factors.ann")
   }
 }

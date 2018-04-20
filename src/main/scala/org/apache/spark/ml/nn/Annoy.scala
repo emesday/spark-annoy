@@ -2,6 +2,7 @@ package org.apache.spark.ml.nn
 
 import ann4s._
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.SerializableWritable
 import org.apache.spark.ml._
 import org.apache.spark.ml.linalg.{Vector => MlVector, VectorUDT => MlVectorUDT}
 import org.apache.spark.ml.param._
@@ -66,20 +67,52 @@ class AnnoyModel private[ml] (
 
   override def write: MLWriter = new AnnoyModel.ANNModelWriter(this)
 
-  def writeAnnoyBinary(path: String): Unit = {
+  @deprecated("use saveAsAnnoyBinary", "0.1.4")
+  def writeAnnoyBinary(path: String): Unit = saveAsAnnoyBinary(path)
+
+  def saveAsAnnoyBinary(path: String, individually: Boolean = false, numPartitions: Int = 0): Unit = {
     require($(forAnnoy), "not built for Annoy")
-    val fs = FileSystem.get(items.sparkSession.sparkContext.hadoopConfiguration)
-    val os = fs.create(new Path(path), true, 1048576)
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
       case Row(id: Int, features: MlVector) =>
         IdVector(id, Vector32(features.toArray.map(_.toFloat)))
       case Row(id: Int, features: Seq[_]) =>
         IdVector(id, Vector32(features.asInstanceOf[Seq[Float]].toArray))
     }
-    AnnoyUtil.dump(vectorWithIds.sortBy(_.id).toLocalIterator, index.getNodes, os)
-    os.close()
-  }
+    val np = if (numPartitions == 0) vectorWithIds.getNumPartitions else numPartitions
+    val sorted = vectorWithIds.sortBy(_.id, ascending = true, np)
 
+    logDebug(s"numPartitions: $numPartitions => $np")
+
+    val sc = items.sparkSession.sparkContext
+    val fs = FileSystem.get(sc.hadoopConfiguration)
+
+    val (itemStat, nodeStat) = if (individually) {
+      logDebug("saving nodes")
+      val numItems = items.count().toInt
+      val os = fs.create(new Path(path + ".node"), true, 1048576)
+      val nodeStat0 = AnnoyUtil.saveNodes(index.getNodes, d, numItems, os)
+      os.close()
+      logDebug("saving items")
+      val c = sc.broadcast(new SerializableWritable(sc.hadoopConfiguration))
+      val stats = sorted.mapPartitionsWithIndex { case (i, it) =>
+        val fs = FileSystem.get(c.value.value)
+        val os = fs.create(new Path(path + f".$i%08d"), true, 1048576)
+        val res = AnnoyUtil.saveItems(it, d, os)
+        os.close()
+        Iterator.single(res)
+      }
+      val itemStat0 = stats.reduce(_ + _)
+      (itemStat0, nodeStat0)
+    } else {
+      logDebug(s"saving all together to $path")
+      val os = fs.create(new Path(path), true, 1048576)
+      val (itemStat0, nodeStat0) = AnnoyUtil.dump(d, sorted.toLocalIterator, index.getNodes, os)
+      os.close()
+      (itemStat0, nodeStat0)
+    }
+    logDebug(itemStat.toString)
+    logDebug(nodeStat.toString)
+  }
 }
 
 object AnnoyModel extends MLReadable[AnnoyModel] {

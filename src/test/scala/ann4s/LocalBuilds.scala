@@ -25,6 +25,7 @@ object LocalBuilds {
   def main(args: Array[String]): Unit = {
 
     val items = readDataset()
+    val d = items.head.vector.size
 
     val fraction = 0.01
     val numSamples = (fraction * items.length).toInt
@@ -64,7 +65,7 @@ object LocalBuilds {
     val directory = new File("exp/annoy")
     directory.mkdirs()
     val os = new FileOutputStream(new File(directory, "local.ann"))
-    AnnoyUtil.dump(items.toIterator, index.getNodes, os)
+    AnnoyUtil.dump(d, items.toIterator, index.getNodes, os)
     os.close()
   }
 

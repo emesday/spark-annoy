@@ -1,59 +1,26 @@
 package ann4s
 
-import java.io.{BufferedOutputStream, OutputStream}
+import java.io.OutputStream
 import java.nio.{ByteBuffer, ByteOrder}
+
+case class AnnoyUtilItemStat(numItems: Int, numHoles: Int, numBytesWritten: Long) {
+  def +(o: AnnoyUtilItemStat): AnnoyUtilItemStat =
+    copy(numItems + o.numItems, numHoles + o.numHoles, numBytesWritten + o.numBytesWritten)
+}
+
+case class AnnoyUtilNodeStat(
+  offset: Int, numRootNodes: Int, numHyperplaneNodes: Int, numLeafNodes: Int, numBytesWritten: Long)
 
 object AnnoyUtil {
 
-  def dump[T <: HasId with HasVector](sortedItemIterator: Iterator[T], nodes: Nodes, os: OutputStream): Unit = {
-
-    val Some(InternalNode(_, _, hyperplane)) = nodes.nodes.find(_.isInstanceOf[InternalNode])
-    val d = hyperplane.size
-
-    val bos = new BufferedOutputStream(os, 1024 * 1024)
-    val buffer = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
-    val hole =  new Array[Byte](12 + d * 4)
+  def saveNodes(nodes: Nodes, d: Int, offset: Int, os: OutputStream): AnnoyUtilNodeStat = {
     var numBytesWritten = 0L
     val write = { b: Array[Byte] =>
-      bos.write(b)
+      os.write(b)
       numBytesWritten += b.length
     }
-
-    println(s"d: $d")
-    println(s"number of nodes ${nodes.nodes.length}")
-
-    var numHoles = 0
-    var i = 0
-    var lastId = -1
-    for (item <- sortedItemIterator) {
-      val id = item.getId
-      val v = item.getVector
-
-      assert(lastId == -1 || lastId < id, "items are not sorted")
-
-      while (i < id) {
-        write(hole)
-        numHoles += 1
-        i += 1
-      }
-      val nrm2 = Vectors.nrm2(v).toFloat
-      buffer.clear()
-      buffer.putInt(1)
-      buffer.putFloat(nrm2 * nrm2) // Annoy stores nrm2^2
-      buffer.putInt(0)
-      for (x <- v.floats) buffer.putFloat(x)
-      assert(buffer.remaining() == 0)
-      write(buffer.array())
-      i += 1
-      lastId = id
-    }
-
-    val numBytesForItems = numBytesWritten
-
-    println(s"number of holes: $numHoles")
-    println(s"numBytes for storing items: $numBytesForItems")
-
-    val numItemNodes = i
+    val buffer = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
+    val numItemNodes = offset
     var numRootNodes = 0
     var numHyperplaneNodes = 0
     var numLeafNodes = 0
@@ -109,10 +76,49 @@ object AnnoyUtil {
         write(buffer.array())
         numHyperplaneNodes += 1
     }
-    bos.flush()
+    AnnoyUtilNodeStat(offset, numRootNodes, numHyperplaneNodes, numLeafNodes, numBytesWritten)
+  }
 
-    println(s"numBytes for storing nodes: ${numBytesWritten - numBytesForItems}")
-    println(numItemNodes, numRootNodes, numHyperplaneNodes, numLeafNodes)
+  def saveItems[T <: HasId with HasVector](items: Iterator[T], d: Int, os: OutputStream): AnnoyUtilItemStat = {
+    val buffer = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
+    val hole =  new Array[Byte](12 + d * 4)
+    var numBytesWritten = 0L
+    val write = { b: Array[Byte] =>
+      os.write(b)
+      numBytesWritten += b.length
+    }
+
+    var numHoles = 0
+    var numItems = 0
+    var lastId = -1
+    for (item <- items) {
+      val id = item.getId
+      val v = item.getVector
+      if (numItems == 0 && numItems < id) numItems = id
+      require(lastId == -1 || lastId < id, "items are not sorted")
+      while (numItems < id) {
+        write(hole)
+        numHoles += 1
+        numItems += 1
+      }
+      val nrm2 = Vectors.nrm2(v).toFloat
+      buffer.clear()
+      buffer.putInt(1)
+      buffer.putFloat(nrm2 * nrm2) // Annoy stores nrm2^2
+      buffer.putInt(0)
+      for (x <- v.floats) buffer.putFloat(x)
+      assert(buffer.remaining() == 0)
+      write(buffer.array())
+      numItems += 1
+      lastId = id
+    }
+    AnnoyUtilItemStat(numItems, numHoles, numBytesWritten)
+  }
+
+  def dump[T <: HasId with HasVector](d: Int, sortedItemIterator: Iterator[T], nodes: Nodes, os: OutputStream): (AnnoyUtilItemStat, AnnoyUtilNodeStat) = {
+    val itemStat = saveItems(sortedItemIterator, d, os)
+    val nodeStat = saveNodes(nodes, d, itemStat.numItems, os)
+    (itemStat, nodeStat)
   }
 
 }

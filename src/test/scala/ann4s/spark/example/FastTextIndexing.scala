@@ -26,6 +26,6 @@ object FastTextIndexing extends LocalSparkApp {
       .setFeaturesCol("features")
 
     val userAnnModel= ann.fit(data)
-    userAnnModel.writeAnnoyBinary("exp/fasttext/cc.ko.300.vec.ann")
+    userAnnModel.saveAsAnnoyBinary("exp/fasttext/cc.ko.300.vec.ann")
   }
 }
