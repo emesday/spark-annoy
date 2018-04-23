@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/mskimm/ann4s.svg?branch=master)](https://travis-ci.org/mskimm/ann4s)
-![Maven metadata URI](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/com/github/mskimm/ann4s_2.11/maven-metadata.xml.svg)
+[![Maven metadata URI](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/com/github/mskimm/ann4s_2.11/maven-metadata.xml.svg)](http://search.maven.org/#artifactdetails%7Ccom.github.mskimm%7Cann4s_2.11%7C0.1.4%7Cjar)
 
 # Ann4s
 
