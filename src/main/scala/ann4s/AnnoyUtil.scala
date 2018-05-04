@@ -3,9 +3,11 @@ package ann4s
 import java.io.OutputStream
 import java.nio.{ByteBuffer, ByteOrder}
 
-case class AnnoyUtilItemStat(numItems: Int, numHoles: Int, numBytesWritten: Long) {
+case class PartInfo(partId: Int, firstId: Int, lastId: Int)
+
+case class AnnoyUtilItemStat(part: Seq[PartInfo], numItems: Int, numHoles: Int, numBytesWritten: Long) {
   def +(o: AnnoyUtilItemStat): AnnoyUtilItemStat =
-    copy(numItems + o.numItems, numHoles + o.numHoles, numBytesWritten + o.numBytesWritten)
+    copy(part ++ o.part, numItems + o.numItems, numHoles + o.numHoles, numBytesWritten + o.numBytesWritten)
 }
 
 case class AnnoyUtilNodeStat(
@@ -79,7 +81,7 @@ object AnnoyUtil {
     AnnoyUtilNodeStat(offset, numRootNodes, numHyperplaneNodes, numLeafNodes, numBytesWritten)
   }
 
-  def saveItems[T <: HasId with HasVector](items: Iterator[T], d: Int, os: OutputStream): AnnoyUtilItemStat = {
+  def saveItems[T <: HasId with HasVector](partId: Int, items: Iterator[T], d: Int, os: OutputStream): AnnoyUtilItemStat = {
     val buffer = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
     val hole =  new Array[Byte](12 + d * 4)
     var numBytesWritten = 0L
@@ -88,13 +90,15 @@ object AnnoyUtil {
       numBytesWritten += b.length
     }
 
+    var firstId = -1
     var numHoles = 0
     var numItems = 0
     var lastId = -1
     for (item <- items) {
       val id = item.getId
       val v = item.getVector
-      if (numItems == 0 && numItems < id) numItems = id
+      if (firstId == -1) firstId = item.getId
+      if (partId > 0 && numItems == 0 && numItems < id) numItems = id
       require(lastId == -1 || lastId < id, "items are not sorted")
       while (numItems < id) {
         write(hole)
@@ -112,11 +116,11 @@ object AnnoyUtil {
       numItems += 1
       lastId = id
     }
-    AnnoyUtilItemStat(numItems, numHoles, numBytesWritten)
+    AnnoyUtilItemStat(Seq(PartInfo(partId, firstId, lastId)), numItems, numHoles, numBytesWritten)
   }
 
   def dump[T <: HasId with HasVector](d: Int, sortedItemIterator: Iterator[T], nodes: Nodes, os: OutputStream): (AnnoyUtilItemStat, AnnoyUtilNodeStat) = {
-    val itemStat = saveItems(sortedItemIterator, d, os)
+    val itemStat = saveItems(0, sortedItemIterator, d, os)
     val nodeStat = saveNodes(nodes, d, itemStat.numItems, os)
     (itemStat, nodeStat)
   }

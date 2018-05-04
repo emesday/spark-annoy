@@ -3,7 +3,7 @@ package org.apache.spark.ml.nn
 import java.io.OutputStream
 
 import ann4s._
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.{FileSystem, Path, RawLocalFileSystem}
 import org.apache.spark.SerializableWritable
 import org.apache.spark.ml._
 import org.apache.spark.ml.linalg.{Vector => MlVector, VectorUDT => MlVectorUDT}
@@ -116,7 +116,7 @@ class AnnoyModel private[ml] (
       val d0 = d // avoid broadcast whole object
       val stats = sorted.mapPartitionsWithIndex { case (i, it) =>
         val fs = FileSystem.get(c.value.value)
-        val res = AnnModel.using(fs, path + f".$i%08d", overwrite)(AnnoyUtil.saveItems(it, d0, _))
+        val res = AnnModel.using(fs, path + f".${i * 2 + 1}%08d", overwrite)(AnnoyUtil.saveItems(i, it, d0, _))
         Iterator.single(res)
       }
       val itemStat0 = stats.reduce(_ + _)
@@ -127,6 +127,24 @@ class AnnoyModel private[ml] (
         AnnoyUtil.dump(d, sorted.toLocalIterator, index.getNodes, _))
       (itemStat0, nodeStat0)
     }
+
+    if (partitioned) {
+      val hole = new Array[Byte](12 + d * 4)
+      val partInfo = itemStat.part.sortBy(_.partId)
+      partInfo.sliding(2).foreach { case Seq(prev, next) =>
+        require(prev.partId + 1 == next.partId)
+        val diff = next.firstId - prev.lastId
+        require(diff > 0, diff)
+        val numHoles = diff - 1
+        if (numHoles > 0) {
+          val f = f".${next.partId * 2}%08d"
+          AnnModel.using(fs, path + f, overwrite) { os =>
+            for (_ <- 0 until numHoles) os.write(hole)
+          }
+        }
+      }
+    }
+
     logDebug(itemStat.toString)
     logDebug(nodeStat.toString)
   }
