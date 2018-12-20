@@ -47,7 +47,7 @@ annModel.saveAsAnnoyBinary("/path/to/dump/annoy-binary")
 From the version 0.1.2, it is released to Maven.
 
 ```
-libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.4"
+libraryDependencies += "com.github.mskimm" %% "ann4s" % "0.1.5"
 ```
  - `0.1.5` is built with Apache Spark 2.3.0
  
