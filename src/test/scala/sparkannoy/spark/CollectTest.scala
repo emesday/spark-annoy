@@ -1,4 +1,4 @@
-package ann4s.spark
+package sparkannoy.spark
 import org.apache.spark.sql.SparkSession
 
 object CollectTest extends LocalSparkApp {

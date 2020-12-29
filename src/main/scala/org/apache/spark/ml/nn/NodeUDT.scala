@@ -1,9 +1,9 @@
 package org.apache.spark.ml.nn
 
-import ann4s._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericInternalRow, UnsafeArrayData}
 import org.apache.spark.sql.types._
+import sparkannoy.{FlipNode, InternalNode, LeafNode, Node, RootNode, Vector0, Vector16, Vector32, Vector64, Vector8}
 
 class NodeUDT extends UserDefinedType[Node] {
 

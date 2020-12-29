@@ -1,6 +1,6 @@
-package ann4s.spark.example
+package sparkannoy.spark.example
 
-import ann4s.spark.LocalSparkApp
+import sparkannoy.spark.LocalSparkApp
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.nn.{Annoy, AnnoyModel}
 import org.apache.spark.sql.SparkSession

@@ -1,8 +1,8 @@
-package ann4s
+package sparkannoy
 
 import com.github.fommil.netlib.BLAS
-import org.scalatest.Matchers._
 import org.scalatest._
+import org.scalatest.Matchers._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random

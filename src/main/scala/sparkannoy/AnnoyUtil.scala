@@ -1,4 +1,4 @@
-package ann4s
+package sparkannoy
 
 import java.io.OutputStream
 import java.nio.{ByteBuffer, ByteOrder}

@@ -1,8 +1,8 @@
-package ann4s
+package sparkannoy
 
-import ann4s.spark.Kiss32Random
-import org.scalatest.Matchers._
 import org.scalatest._
+import org.scalatest.Matchers._
+import sparkannoy.spark.Kiss32Random
 
 class KissRandomTest extends FunSuite {
 

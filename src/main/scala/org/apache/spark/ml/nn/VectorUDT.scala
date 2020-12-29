@@ -1,15 +1,15 @@
 package org.apache.spark.ml.nn
 
-import ann4s.{Vector0, Vector16, Vector8, Vector32, Vector64, Vector}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericInternalRow, UnsafeArrayData}
 import org.apache.spark.sql.types._
+import sparkannoy.{Vector0, Vector16, Vector32, Vector64, Vector8}
 
-class VectorUDT extends UserDefinedType[Vector] {
+class VectorUDT extends UserDefinedType[sparkannoy.Vector] {
 
   override def sqlType: DataType = _sqlType
 
-  override def serialize(obj: Vector): InternalRow = {
+  override def serialize(obj: sparkannoy.Vector): InternalRow = {
     val row = new GenericInternalRow(5)
     row.setNullAt(1)
     row.setNullAt(2)
@@ -35,7 +35,7 @@ class VectorUDT extends UserDefinedType[Vector] {
     row
   }
 
-  override def deserialize(datum: Any): Vector = {
+  override def deserialize(datum: Any): sparkannoy.Vector = {
     datum match {
       case row: InternalRow =>
         require(row.numFields == 5,
@@ -57,7 +57,7 @@ class VectorUDT extends UserDefinedType[Vector] {
     }
   }
 
-  override def userClass: Class[Vector] = classOf[Vector]
+  override def userClass: Class[sparkannoy.Vector] = classOf[sparkannoy.Vector]
 
   override def equals(o: Any): Boolean = {
     o match {

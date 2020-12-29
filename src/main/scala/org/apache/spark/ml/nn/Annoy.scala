@@ -2,7 +2,6 @@ package org.apache.spark.ml.nn
 
 import java.io.OutputStream
 
-import ann4s._
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SerializableWritable
 import org.apache.spark.ml._
@@ -16,6 +15,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 import org.json4s.DefaultFormats
 import org.json4s.JsonDSL._
+import sparkannoy.{AnnoyUtil, CosineDistance, Distance, IdVector, IdVectorWithNorm, Index, IndexAggregator, IndexBuilder, Nodes, Vector32}
 
 import scala.util.Random
 
