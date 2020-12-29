@@ -20,7 +20,6 @@ trait Vector extends Serializable {
       case o: Vector =>
         if (this.size != o.size) return false
         (this, o) match {
-          //case (Vector0, Vector0) => true // TODO
           case (a: Vector8, b: Vector8) =>
             if (a.w != b.w) false
             else if (a.b != b.b) false
@@ -36,20 +35,22 @@ trait Vector extends Serializable {
       case _ => false
     }
   }
+
+  override def hashCode(): Int = super.hashCode()
 }
 
 case object Vector0 extends Vector {
   override def size: Int = 0
   override def numBytes: Int = 1
   override def floats: Array[Float] = Array.emptyFloatArray
-  override def apply(i: Int): Float = ???
+  override def apply(i: Int): Float = throw new NotImplementedError
 }
 
 case class Vector8(vector: Array[Byte], w: Float, b: Float) extends Vector {
   override def size: Int = vector.length
   override def numBytes: Int = 5 + vector.length + 8
-  override def floats: Array[Float] = ???
-  override def apply(i: Int): Float = ???
+  override def floats: Array[Float] = throw new NotImplementedError
+  override def apply(i: Int): Float = throw new NotImplementedError
 }
 
 case class Vector16(vector: Array[Short]) extends Vector {
@@ -96,7 +97,7 @@ object Vectors {
     }
   }
 
-  def nrm2(x: Vector): Double  = {
+  def nrm2(x: Vector): Double = {
     x match {
       case v16: Vector16 =>
         math.sqrt(dot(v16, v16))

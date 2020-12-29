@@ -79,9 +79,10 @@ object AnnoyUtil {
     AnnoyUtilNodeStat(offset, numRootNodes, numHyperplaneNodes, numLeafNodes, numBytesWritten)
   }
 
-  def saveItems[T <: HasId with HasVector](items: Iterator[T], d: Int, os: OutputStream): AnnoyUtilItemStat = {
+  def saveItems[T <: HasId with HasVector](
+      items: Iterator[T], d: Int, os: OutputStream): AnnoyUtilItemStat = {
     val buffer = ByteBuffer.allocate(12 + d * 4).order(ByteOrder.LITTLE_ENDIAN)
-    val hole =  new Array[Byte](12 + d * 4)
+    val hole = new Array[Byte](12 + d * 4)
     var numBytesWritten = 0L
     val write = { b: Array[Byte] =>
       os.write(b)
@@ -115,7 +116,9 @@ object AnnoyUtil {
     AnnoyUtilItemStat(numItems, numHoles, numBytesWritten)
   }
 
-  def dump[T <: HasId with HasVector](d: Int, sortedItemIterator: Iterator[T], nodes: Nodes, os: OutputStream): (AnnoyUtilItemStat, AnnoyUtilNodeStat) = {
+  def dump[T <: HasId with HasVector](
+      d: Int, sortedItemIterator: Iterator[T],
+      nodes: Nodes, os: OutputStream): (AnnoyUtilItemStat, AnnoyUtilNodeStat) = {
     val itemStat = saveItems(sortedItemIterator, d, os)
     val nodeStat = saveNodes(nodes, d, itemStat.numItems, os)
     (itemStat, nodeStat)

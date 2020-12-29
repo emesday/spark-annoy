@@ -29,11 +29,17 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
 
   def getNumTrees: Int = $(numTrees)
 
-  final val fraction: DoubleParam = new DoubleParam(this, "fraction", "fraction of data to build parent tree")
+  final val fraction: DoubleParam = new DoubleParam(
+    this,
+    "fraction",
+    "fraction of data to build parent tree")
 
   def getFraction: Double = $(fraction)
 
-  final val forAnnoy: BooleanParam = new BooleanParam(this, "forAnnoy", "build Annoy compatible binary")
+  final val forAnnoy: BooleanParam = new BooleanParam(
+    this,
+    "forAnnoy",
+    "build Annoy compatible binary")
 
   def getForAnnoy: Boolean = $(forAnnoy)
 
@@ -44,7 +50,8 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
   protected def validateAndTransformSchema(schema: StructType): StructType = {
     SchemaUtils.checkColumnType(schema, $(idCol), IntegerType)
     SchemaUtils.checkColumnTypes(schema, $(featuresCol),
-      Seq(new MlVectorUDT, new MllibVectorUDT, ArrayType(FloatType, false), ArrayType(FloatType, true)))
+      Seq(new MlVectorUDT, new MllibVectorUDT,
+        ArrayType(FloatType, containsNull = false), ArrayType(FloatType, containsNull = true)))
     schema
   }
 }
@@ -113,7 +120,8 @@ class AnnoyModel private[ml] (
     val (itemStat, nodeStat) = if (partitioned) {
       logDebug("saving nodes")
       val numItems = items.count().toInt
-      val nodeStat0 = AnnModel.using(fs, path + ".node", overwrite)(AnnoyUtil.saveNodes(index.getNodes, d, numItems, _))
+      val nodeStat0 = AnnModel.using(fs, path + ".node", overwrite)(
+        AnnoyUtil.saveNodes(index.getNodes, d, numItems, _))
       logDebug("saving items")
       val c = sc.broadcast(new SerializableWritable(sc.hadoopConfiguration))
       val d0 = d // avoid broadcast whole object
@@ -225,12 +233,14 @@ class Annoy(override val uid: String)
     implicit val distance: Distance = CosineDistance
     implicit val localRandom: Random = new Random(randomSeed)
 
-    val samples = instances.sample(withReplacement = false, $(fraction), localRandom.nextLong()).collect()
+    val samples = instances.sample(
+      withReplacement = false, $(fraction), localRandom.nextLong()).collect()
     val d = samples.head.vector.size
     val mc = if ($(forAnnoy) || $(maxChildren) == 0) d + 2 else $(maxChildren)
     val parentTreeMc = math.max(mc, samples.length / instances.getNumPartitions)
 
-    logDebug(s"numSamples: ${samples.length}, d: $d, maxChildren: $mc, parentTreeMaxChildren: $parentTreeMc")
+    logDebug(s"numSamples: ${samples.length}," +
+      s" d: $d, maxChildren: $mc, parentTreeMaxChildren: $parentTreeMc")
 
     val globalAggregator = new IndexAggregator
     var i = 0
