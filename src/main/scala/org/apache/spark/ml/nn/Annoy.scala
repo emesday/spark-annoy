@@ -10,8 +10,9 @@ import org.apache.spark.ml.linalg.{Vector => MlVector, VectorUDT => MlVectorUDT}
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.param.shared.{HasFeaturesCol, HasSeed}
 import org.apache.spark.ml.util._
-import org.apache.spark.sql.types._
+import org.apache.spark.mllib.linalg.{Vector => MllibVector, VectorUDT => MllibVectorUDT}
 import org.apache.spark.sql.{DataFrame, Dataset, Row}
+import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 import org.json4s.DefaultFormats
 import org.json4s.JsonDSL._
@@ -43,7 +44,7 @@ trait ANNParams extends Params with HasFeaturesCol with HasSeed {
   protected def validateAndTransformSchema(schema: StructType): StructType = {
     SchemaUtils.checkColumnType(schema, $(idCol), IntegerType)
     SchemaUtils.checkColumnTypes(schema, $(featuresCol),
-      Seq(new MlVectorUDT, ArrayType(FloatType, false), ArrayType(FloatType, true)))
+      Seq(new MlVectorUDT, new MllibVectorUDT, ArrayType(FloatType, false), ArrayType(FloatType, true)))
     schema
   }
 }
@@ -94,6 +95,8 @@ class AnnoyModel private[ml] (
     require($(forAnnoy), "not built for Annoy")
     val vectorWithIds = items.select($(idCol), $(featuresCol)).rdd.map {
       case Row(id: Int, features: MlVector) =>
+        IdVector(id, Vector32(features.toArray.map(_.toFloat)))
+      case Row(id: Int, features: MllibVector) =>
         IdVector(id, Vector32(features.toArray.map(_.toFloat)))
       case Row(id: Int, features: Seq[_]) =>
         IdVector(id, Vector32(features.asInstanceOf[Seq[Float]].toArray))
@@ -204,6 +207,8 @@ class Annoy(override val uid: String)
     val instances = dataset.select($(idCol), $(featuresCol)).rdd.map {
       case Row(id: Int, features: MlVector) =>
         IdVectorWithNorm(id, features.toArray.map(_.toFloat))
+      case Row(id: Int, features: MllibVector) =>
+        IdVectorWithNorm(id, Vector32(features.toArray.map(_.toFloat)))
       case Row(id: Int, features: Seq[_]) =>
         IdVectorWithNorm(id, features.asInstanceOf[Seq[Float]].toArray)
     }
