@@ -1,4 +1,4 @@
-package ann4s
+package sparkannoy
 
 import scala.collection.mutable.ArrayBuffer
 

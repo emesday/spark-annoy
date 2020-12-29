@@ -1,6 +1,8 @@
-package ann4s
+package sparkannoy
 
 import java.io._
+
+import sparkannoy._
 
 import scala.util.Random
 
@@ -9,8 +11,10 @@ object LocalBuilds {
   val d = 25
 
   def readDataset(): IndexedSeq[IdVectorWithNorm] = {
-    val is = try { new FileInputStream(s"data/train.bin") }
-    catch { case _: Throwable => throw new Error("run `data/download.sh` in shell first") }
+    val is = try { new FileInputStream(s"data/train.bin") } catch {
+      case _: Throwable =>
+        throw new Error("run `data/download.sh` in shell first")
+    }
 
     val dis = new DataInputStream(new BufferedInputStream(is))
     val n = dis.readInt()
@@ -38,7 +42,6 @@ object LocalBuilds {
     implicit val distance: Distance = CosineDistance
 
     0 until 2 foreach { _ =>
-
       val builder = new IndexBuilder(1, d + 2)
       val parentTree = builder.build(samples)
       val localAggregator = new IndexAggregator().aggregate(parentTree.nodes)
@@ -49,12 +52,14 @@ object LocalBuilds {
         }
         .groupBy(_._1)
         .par
-        .map { case (subTreeId, it) =>
-          subTreeId -> new IndexBuilder(1, d + 2).build(it.map(_._2))
+        .map {
+          case (subTreeId, it) =>
+            subTreeId -> new IndexBuilder(1, d + 2).build(it.map(_._2))
         }
         .seq
-        .foreach { case (subTreeId, subTreeNodes) =>
-          localAggregator.mergeSubTree(subTreeId, subTreeNodes.nodes)
+        .foreach {
+          case (subTreeId, subTreeNodes) =>
+            localAggregator.mergeSubTree(subTreeId, subTreeNodes.nodes)
         }
 
       globalAggregator.aggregate(localAggregator.nodes)

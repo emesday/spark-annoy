@@ -1,6 +1,6 @@
-package ann4s.spark.example
+package sparkannoy.spark.example
 
-import ann4s.spark.LocalSparkApp
+import sparkannoy.spark.LocalSparkApp
 import org.apache.spark.ml.nn.Annoy
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.ml.recommendation.ALS

@@ -1,7 +1,8 @@
-package ann4s
+package sparkannoy
 
-import org.scalatest.Matchers._
+import sparkannoy._
 import org.scalatest._
+import org.scalatest.Matchers._
 
 class IndexAggregatorTest extends FunSuite {
 

@@ -4,7 +4,7 @@ import java.io.File
 
 import com.holdenkarau.spark.testing.DatasetSuiteBase
 import com.sun.jna.Pointer
-import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.ml.linalg.{Vector => MlVector}
 import org.apache.spark.ml.nn.Annoy
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
@@ -24,7 +24,7 @@ class AccuracyTest extends FunSuite with DatasetSuiteBase {
   def getIndex(dataset: String): Pointer = {
     val index = s"dev/test/$dataset.sparkannoy"
     val trainData = load(s"dev/test/parquet/$dataset/train")
-    val dim = trainData.first().getAs[Vector](1).size
+    val dim = trainData.first().getAs[MlVector](1).size
 
     if (!new File(index).exists()) {
       val ann = new Annoy().setNumTrees(10)
@@ -49,7 +49,7 @@ class AccuracyTest extends FunSuite with DatasetSuiteBase {
     val neighbors = load(s"dev/test/parquet/$dataset/neighbors")
       .map { row =>
         val i = row.getInt(0)
-        val neighbors = row.getAs[Vector](1).toArray.take(10).map(_.toInt)
+        val neighbors = row.getAs[MlVector](1).toArray.take(10).map(_.toInt)
         (i, neighbors)
       }
       .collect()
@@ -62,7 +62,7 @@ class AccuracyTest extends FunSuite with DatasetSuiteBase {
     var k = 0
     data.toLocalIterator().asScala.foreach { row =>
       val i = row.getInt(0)
-      val vector = row.getAs[Vector](1).toArray.map(_.toFloat)
+      val vector = row.getAs[MlVector](1).toArray.map(_.toFloat)
       val fast = new Array[Int](10)
       val dist = new Array[Float](10)
       annoy4s.Annoy.annoyLib.getNnsByVector(index, vector, 10, 1000, fast, dist)

@@ -1,7 +1,7 @@
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.{Comment, Elem, Node => XmlNode, NodeSeq => XmlNodeSeq}
 
-name := "ann4s"
+name := "sparkannoy"
 
 val versions = new {
   val spark = "2.3.0"
@@ -26,7 +26,7 @@ sources in (Compile, doc) := Seq.empty
 
 scalacOptions := Seq("-feature", "unchecked", "-encoding", "utf8")
 
-homepage := Some(url("https://github.com/mskimm/ann4s"))
+homepage := Some(url("https://github.com/mskimm/sparkannoy"))
 
 licenses := Seq(
   "The Apache License, Version 2.0" -> url(
@@ -35,7 +35,7 @@ licenses := Seq(
 description := "Building Annoy Index on Apache Spark"
 
 scmInfo := Some {
-  val git = "https://github.com/mskimm/ann4s.git";
+  val git = "https://github.com/mskimm/sparkannoy.git";
   ScmInfo(url(git), s"scm:git:$git", Some(s"scm:git$git"))
 }
 

@@ -1,4 +1,4 @@
-package ann4s
+package sparkannoy
 
 import java.nio.ByteBuffer
 import java.util

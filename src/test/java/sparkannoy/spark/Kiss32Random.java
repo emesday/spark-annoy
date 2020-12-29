@@ -1,4 +1,4 @@
-package ann4s.spark;
+package sparkannoy.spark;
 
 import java.math.BigInteger;
 import java.util.Random;
