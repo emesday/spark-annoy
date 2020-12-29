@@ -4,3 +4,6 @@ annoy-index-*
 test.ann
 *.elapsed.log
 exp
+
+dev/test
+__pycache__

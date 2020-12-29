@@ -5,15 +5,15 @@ name := "ann4s"
 
 val versions = new {
   val spark = "2.3.0"
-  val rocksdb = "5.11.3"
-  val scalatest = "2.2.6"
+  val scalaTestingBase = s"${spark}_0.14.0"
+  val annoy4s = "0.9.0"
 }
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % versions.spark % "provided",
-  "org.apache.spark" %% "spark-mllib" % versions.spark % "provided",
-  "org.rocksdb" % "rocksdbjni" % versions.rocksdb,
-  "org.scalatest" %% "scalatest" % versions.scalatest % "test"
+  "org.apache.spark" %% "spark-core" % versions.spark % Provided,
+  "org.apache.spark" %% "spark-mllib" % versions.spark % Provided,
+  "com.holdenkarau" %% "spark-testing-base" % versions.scalaTestingBase % Test,
+  "net.pishen" %% "annoy4s" % versions.annoy4s % Test
 )
 
 organization := "com.github.mskimm"
@@ -28,13 +28,22 @@ scalacOptions := Seq("-feature", "unchecked", "-encoding", "utf8")
 
 homepage := Some(url("https://github.com/mskimm/ann4s"))
 
-licenses := Seq("The Apache License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+licenses := Seq(
+  "The Apache License, Version 2.0" -> url(
+    "http://www.apache.org/licenses/LICENSE-2.0.txt"))
 
 description := "Building Annoy Index on Apache Spark"
 
-scmInfo := Some{ val git = "https://github.com/mskimm/ann4s.git"; ScmInfo(url(git), s"scm:git:$git", Some(s"scm:git$git"))}
+scmInfo := Some {
+  val git = "https://github.com/mskimm/ann4s.git";
+  ScmInfo(url(git), s"scm:git:$git", Some(s"scm:git$git"))
+}
 
-developers := List(Developer("mskimm", "Min Seok Kim", "mskim.org@gmail.com", url("https://github.com/mskimm")))
+developers := List(
+  Developer("mskimm",
+            "Min Seok Kim",
+            "mskim.org@gmail.com",
+            url("https://github.com/mskimm")))
 
 publishTo := {
   val maven = "https://oss.sonatype.org"
@@ -44,17 +53,24 @@ publishTo := {
     Some("Sonatype Staging" at s"$maven/service/local/staging/deploy/maven2")
 }
 
-credentials ++= Seq(Path.userHome / ".ivy2" / ".credentials").filter(_.exists()).map(Credentials.apply)
+credentials ++= Seq(Path.userHome / ".ivy2" / ".credentials")
+  .filter(_.exists())
+  .map(Credentials.apply)
 
 releasePublishArtifactsAction := PgpKeys.publishSigned.value
 
 pomPostProcess := { (node: XmlNode) =>
   new RuleTransformer(new RewriteRule {
     override def transform(node: XmlNode): XmlNodeSeq = node match {
-      case e: Elem if e.label == "dependency" && (e \ "scope").map(_.text).exists(Set("provided", "test").contains) =>
+      case e: Elem
+          if e.label == "dependency" && (e \ "scope")
+            .map(_.text)
+            .exists(Set("provided", "test").contains) =>
         val Seq(organization, artifact, version, scope) =
-          Seq("groupId", "artifactId", "version", "scope").map(x => (e \ x).head.text)
-        Comment(s"$scope dependency $organization#$artifact;$version has been omitted")
+          Seq("groupId", "artifactId", "version", "scope").map(x =>
+            (e \ x).head.text)
+        Comment(
+          s"$scope dependency $organization#$artifact;$version has been omitted")
       case _ => node
     }
   }).transform(node).head
