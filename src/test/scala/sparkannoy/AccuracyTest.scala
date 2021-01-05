@@ -2,18 +2,19 @@ package sparkannoy
 
 import java.io.File
 
-import com.holdenkarau.spark.testing.DatasetSuiteBase
 import com.sun.jna.Pointer
 import org.apache.spark.ml.linalg.{Vector => MlVector}
 import org.apache.spark.ml.nn.Annoy
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.DataFrame
-import org.scalatest.FunSuite
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.scalatest.{BeforeAndAfter, FunSuite}
 import org.scalatest.Matchers.convertNumericToPlusOrMinusWrapper
 
 import scala.collection.JavaConverters._
 
-class AccuracyTest extends FunSuite with DatasetSuiteBase {
+class AccuracyTest extends FunSuite with BeforeAndAfter {
+
+  var spark: SparkSession = _
 
   def load(path: String): DataFrame = {
     spark.read
@@ -42,7 +43,9 @@ class AccuracyTest extends FunSuite with DatasetSuiteBase {
   }
 
   def testIndex(dataset: String, expectedAccuracy: Double): Unit = {
-    import spark.implicits._
+    val sparkSession = spark
+
+    import sparkSession.implicits._
 
     val index = getIndex(dataset)
 
@@ -76,6 +79,10 @@ class AccuracyTest extends FunSuite with DatasetSuiteBase {
            expectedAccuracy)
 
     assert(accuracy === expectedAccuracy +- 1.0)
+  }
+
+  before {
+    spark = SparkSession.builder().master("local[4]").getOrCreate()
   }
 
   test("glove_25") {
