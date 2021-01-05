@@ -1,19 +1,17 @@
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.{Comment, Elem, Node => XmlNode, NodeSeq => XmlNodeSeq}
 
-name := "sparkannoy"
+name := "spark-annoy"
 
-val versions = new {
-  val spark = "2.3.0"
-  val scalaTestingBase = s"${spark}_0.14.0"
-  val annoy4s = "0.9.0"
-}
+val sparkVersion = settingKey[String]("Spark version")
+
+sparkVersion := System.getProperty("sparkVersion", "2.3.0")
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % versions.spark % Provided,
-  "org.apache.spark" %% "spark-mllib" % versions.spark % Provided,
-  "com.holdenkarau" %% "spark-testing-base" % versions.scalaTestingBase % Test,
-  "net.pishen" %% "annoy4s" % versions.annoy4s % Test
+  "org.apache.spark" %% "spark-core" % sparkVersion.value % Provided,
+  "org.apache.spark" %% "spark-mllib" % sparkVersion.value % Provided,
+  "org.scalatest" %% "scalatest" % "3.0.5" % Test,
+  "net.pishen" %% "annoy4s" % "0.9.0" % Test
 )
 
 organization := "com.github.mskimm"
@@ -35,7 +33,7 @@ licenses := Seq(
 description := "Building Annoy Index on Apache Spark"
 
 scmInfo := Some {
-  val git = "https://github.com/mskimm/sparkannoy.git";
+  val git = "https://github.com/mskimm/spark-annoy.git";
   ScmInfo(url(git), s"scm:git:$git", Some(s"scm:git$git"))
 }
 
