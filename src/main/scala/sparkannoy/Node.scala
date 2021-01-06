@@ -3,9 +3,9 @@ package sparkannoy
 import java.nio.ByteBuffer
 
 /**
-  * RootNode, HyperplaneNode, and FlipNode are loaded on memory each query server.
-  * LeafNode is stored in persistent layer
-  */
+ * RootNode, HyperplaneNode, and FlipNode are loaded on memory each query server.
+ * LeafNode is stored in persistent layer
+ */
 trait Node extends Serializable {
   def withOffset(offset: Int): Node
 }
@@ -31,8 +31,8 @@ case class RootNode(location: Int) extends Node {
 }
 
 /**
-  * l or r is the negative value when the corresponding child is LeafNode
-  */
+ * l or r is the negative value when the corresponding child is LeafNode
+ */
 case class InternalNode(l: Int, r: Int, hyperplane: Vector) extends Node {
   def withOffset(offset: Int): InternalNode = {
     val newL = if (l >= 0) l + offset else l - offset
@@ -42,8 +42,8 @@ case class InternalNode(l: Int, r: Int, hyperplane: Vector) extends Node {
 }
 
 /**
-  * a special case of InternalNode whose hyperplane is 0
-  */
+ * a special case of InternalNode whose hyperplane is 0
+ */
 case class FlipNode(l: Int, r: Int) extends Node {
   def withOffset(offset: Int): FlipNode = {
     val newL = if (l >= 0) l + offset else l - offset

@@ -50,7 +50,8 @@ object IndexBuilder {
 
   val iterationSteps = 200
 
-  def twoMeans(points: IndexedSeq[IdVectorWithNorm])(implicit distance: Distance, random: Random): (Vector, Vector) = {
+  def twoMeans(points: IndexedSeq[IdVectorWithNorm])(
+      implicit distance: Distance, random: Random): (Vector, Vector) = {
     val count = points.length
     val i = random.nextInt(count)
     var j = random.nextInt(count - 1)
@@ -81,7 +82,8 @@ object IndexBuilder {
     (p.vector, q.vector)
   }
 
-  def createSplit(sample: IndexedSeq[IdVectorWithNorm])(implicit distance: Distance, random: Random): Vector = {
+  def createSplit(sample: IndexedSeq[IdVectorWithNorm])(
+      implicit distance: Distance, random: Random): Vector = {
     val (p, q) = twoMeans(sample)
     Vectors.axpy(-1, q, p)
     val norm = Vectors.nrm2(p)
@@ -90,7 +92,8 @@ object IndexBuilder {
   }
 }
 
-class IndexBuilder(numTrees: Int, leafNodeCapacity: Int, needLeafNode: Boolean = true)(implicit  distance: Distance, random: Random) extends Serializable {
+class IndexBuilder(numTrees: Int, leafNodeCapacity: Int, needLeafNode: Boolean = true)(
+    implicit  distance: Distance, random: Random) extends Serializable {
 
   assert(numTrees > 0)
   assert(leafNodeCapacity > 1)
@@ -121,7 +124,7 @@ class IndexBuilder(numTrees: Int, leafNodeCapacity: Int, needLeafNode: Boolean =
       val rightChildren = new ArrayBuffer[IdVectorWithNorm]
       points foreach { p =>
         distance.side(hyperplane, p.vector) match {
-          case Side.Left  => leftChildren += p
+          case Side.Left => leftChildren += p
           case Side.Right => rightChildren += p
         }
       }

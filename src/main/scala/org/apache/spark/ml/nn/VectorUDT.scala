@@ -1,7 +1,10 @@
 package org.apache.spark.ml.nn
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{GenericInternalRow, UnsafeArrayData}
+import org.apache.spark.sql.catalyst.expressions.{
+  GenericInternalRow,
+  UnsafeArrayData
+}
 import org.apache.spark.sql.types._
 import sparkannoy.{Vector0, Vector16, Vector32, Vector64, Vector8}
 
@@ -38,8 +41,10 @@ class VectorUDT extends UserDefinedType[sparkannoy.Vector] {
   override def deserialize(datum: Any): sparkannoy.Vector = {
     datum match {
       case row: InternalRow =>
-        require(row.numFields == 5,
-          s"nn.VectorUDT.deserialize given row with length ${row.numFields} but requires length == 5")
+        require(
+          row.numFields == 5,
+          s"nn.VectorUDT.deserialize given row with length ${row.numFields}" +
+            " but requires length == 5")
         val tpe = row.getByte(0)
         tpe match {
           case 0 =>
@@ -73,12 +78,22 @@ class VectorUDT extends UserDefinedType[sparkannoy.Vector] {
   private[spark] override def asNullable: VectorUDT = this
 
   private[this] val _sqlType = {
-    StructType(Seq(
-      StructField("type", ByteType, nullable = false),
-      StructField("fixed8", ArrayType(ByteType, containsNull = false), nullable = true),
-      StructField("fixed16", ArrayType(ShortType, containsNull = false), nullable = true),
-      StructField("float32", ArrayType(FloatType, containsNull = false), nullable = true),
-      StructField("float64", ArrayType(DoubleType, containsNull = false), nullable = true)))
+    StructType(
+      Seq(
+        StructField("type", ByteType, nullable = false),
+        StructField("fixed8",
+                    ArrayType(ByteType, containsNull = false),
+                    nullable = true),
+        StructField("fixed16",
+                    ArrayType(ShortType, containsNull = false),
+                    nullable = true),
+        StructField("float32",
+                    ArrayType(FloatType, containsNull = false),
+                    nullable = true),
+        StructField("float64",
+                    ArrayType(DoubleType, containsNull = false),
+                    nullable = true)
+      ))
   }
 }
 
@@ -86,11 +101,16 @@ object VectorUDT {
 
   def register(): Unit = {
     UDTRegistration.register("ann4s.Vector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.EmptyVector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.Fixed8Vector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.Fixed16Vector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.Float32Vector", "org.apache.spark.ml.nn.VectorUDT")
-    UDTRegistration.register("ann4s.Float64Vector", "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.EmptyVector",
+                             "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Fixed8Vector",
+                             "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Fixed16Vector",
+                             "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Float32Vector",
+                             "org.apache.spark.ml.nn.VectorUDT")
+    UDTRegistration.register("ann4s.Float64Vector",
+                             "org.apache.spark.ml.nn.VectorUDT")
   }
 
 }
